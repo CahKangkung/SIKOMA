@@ -11,6 +11,8 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import AccountDetailPage from "./pages/AccountDetailPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
 import ManageDocs from './pages/ManageDocs';
+import ViewDoc from './pages/ViewDoc';
+import AddDoc from './pages/AddDoc';
 
 
 export default function App() {
@@ -26,6 +28,9 @@ export default function App() {
       <Route path="/account" element={<AccountDetailPage />} />
       <Route path="/settings" element={<AccountSettingsPage />} />
       <Route path="/manage-document" element={<ManageDocs />} />
+      <Route path="/ViewDoc" element={<ViewDoc />} />
+      <Route path="/manage-document/:id" element={<ViewDoc />} />
+      <Route path="/manage-document/add" element={<AddDoc />} />
     </Routes>
   );
 }
