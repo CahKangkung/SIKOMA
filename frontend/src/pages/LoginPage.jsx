@@ -15,7 +15,7 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (form.username === "admin@gmail.com" && form.password === "admin") {
-      navigate("/dashboard"); // pindah ke dashboard
+      navigate("/home"); // pindah ke dashboard
     } else {
       setError("Invalid email or password");
     }
@@ -70,7 +70,7 @@ export default function LoginPage() {
         </button>
 
         <div className="mt-6 text-center text-sm">
-          Don’t have an account?{" "}
+          Don't have an account?{" "}
           <Link to="/register" className="text-[#23358B] hover:underline">
             Register
           </Link>

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Building2, PlusSquare, User as UserIcon, IdCard } from "lucide-react";
+import { UserRound, Building2, PlusSquare, User as UserIcon, IdCard } from "lucide-react";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -87,23 +87,29 @@ export default function HomePage() {
         </p>
 
         {/* Cards */}
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div
+          onClick={() => navigate("/organizations?mode=join")}
+          className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6"
+          >
           <button className="rounded-xl border p-8 hover:shadow-lg transition">
             <Building2 className="w-10 h-10 mx-auto text-[#5A6BF5]" />
             <p className="mt-4 font-semibold text-neutral-800">Join Existing Organization</p>
           </button>
 
-          <button className="rounded-xl border p-8 hover:shadow-lg transition">
+          <button 
+            onClick={navigate("/organizations?mode=create")}
+            className="rounded-xl border p-8 hover:shadow-lg transition"
+          >
             <PlusSquare className="w-10 h-10 mx-auto text-green-600" />
             <p className="mt-4 font-semibold text-neutral-800">Create New Organization</p>
           </button>
 
           <button
-            onClick={handleLogout}
+            onClick={navigate("/organizations?mode=current")}
             className="rounded-xl border p-8 hover:shadow-lg transition"
           >
-            <LogOut className="w-10 h-10 mx-auto text-red-500" />
-            <p className="mt-4 font-semibold text-neutral-800">Logout</p>
+            <UserRound className="w-10 h-10 mx-auto text-orange-500" />
+            <p className="mt-4 font-semibold text-neutral-800">Current Organization</p>
           </button>
         </div>
       </main>
