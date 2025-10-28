@@ -83,7 +83,7 @@ export default function DashboardPage() {
       <main className="flex flex-col items-center justify-center text-center px-6 py-10">
         <h1 className="text-4xl font-extrabold text-neutral-800">Welcome, User!</h1>
         <p className="mt-2 text-neutral-600">
-          You’re not part of any organization yet. Let’s get started
+          You're not part of any organization yet. Let's get started
         </p>
 
         {/* Cards */}
