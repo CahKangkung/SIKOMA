@@ -4,12 +4,12 @@ import { Home, FileText, Users, User, LogOut } from "lucide-react";
 import logo from "../assets/logo.png";
 
 export default function Sidebar() {
-  const menuItems = [
-    { name: "Dashboard", icon: <Home size={20} />, path: "/dashboard" },
-    { name: "Manage Document", icon: <FileText size={20} />, path: "/manage-document" },
-    { name: "Organization", icon: <Users size={20} />, path: "/organization" },
-    { name: "Member", icon: <User size={20} />, path: "/member" },
-    { name: "Account", icon: <User size={20} />, path: "/account" },
+  const menu = [
+    { name: "Dashboard", icon: Home, path: "/dashboard", end: true }, // exact
+    { name: "Manage Document", icon: FileText, path: "/manage-document" },
+    { name: "Organization", icon: Users, path: "/organization" },
+    { name: "Member", icon: User, path: "/member" },
+    { name: "Account", icon: User, path: "/account" },
   ];
 
   return (
@@ -21,33 +21,39 @@ export default function Sidebar() {
 
       {/* Menu */}
       <nav className="flex-1">
-        {menuItems.map((item) => (
+        {menu.map((item) => (
           <NavLink
             key={item.name}
             to={item.path}
+            end={item.end} // hanya Dashboard yang exact
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2 mb-1 rounded-lg text-sm font-medium transition ${
-                isActive
-                  ? "bg-[#23358B] text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`
+              `flex items-center gap-3 px-4 py-2 mb-1 rounded-lg text-sm font-medium transition
+               ${isActive ? "bg-[#23358B] text-white" : "text-gray-700 hover:bg-gray-100"}`
             }
           >
-            {item.icon}
-            {item.name}
+            {({ isActive }) => (
+              <>
+                <item.icon
+                  size={20}
+                  className={isActive ? "text-white" : "text-gray-500"}
+                />
+                <span>{item.name}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
 
-      {/* Logout button */}
+      {/* Logout */}
       <button
-        onClick={() => { localStorage.removeItem("isLoggedIn");
-        window.location.href = "/login";
+        onClick={() => {
+          localStorage.removeItem("isLoggedIn");
+          window.location.href = "/login";
         }}
-        className="mt-auto flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition">
-        <LogOut size={20} />Logout
-        </button>
-
+        className="mt-auto flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+      >
+        <LogOut size={20} /> Logout
+      </button>
     </aside>
   );
 }

@@ -25,7 +25,7 @@ export default function App() {
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/account" element={<AccountDetailPage />} />
       <Route path="/settings" element={<AccountSettingsPage />} />
-      <Route path="/ManageDocument" element={<ManageDocs />} />
+      <Route path="/manage-document" element={<ManageDocs />} />
     </Routes>
   );
 }
