@@ -9,7 +9,7 @@ import ForgotPasswordSuccess from "./pages/ForgotPasswordSuccess";
 import DashboardPage from "./pages/DashboardPage";
 import AccountDetailPage from "./pages/AccountDetailPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
-
+import ManageDocs from './pages/ManageDocs';
 
 
 export default function App() {
@@ -23,6 +23,7 @@ export default function App() {
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/account" element={<AccountDetailPage />} />
       <Route path="/settings" element={<AccountSettingsPage />} />
+      <Route path="/ManageDocument" element={<ManageDocs />} />
     </Routes>
   );
 }

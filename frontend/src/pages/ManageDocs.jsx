@@ -1,24 +1,35 @@
+// src/pages/ManageDocs.jsx
 import { useEffect, useState, useCallback } from "react";
 import { listDocs, deleteDoc, search as searchApi } from "../Services/api";
 import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
 
 const DUMMY_AUTHORS = ["UKM Seni Rupa", "Himpunan Mahasiswa SI", "UKM Robotika", "BEM Fakultas"];
 const DUMMY_STATUS  = ["On Review", "Uploaded", "Rejected", "Approved"];
 
+function statusClass(s) {
+  const key = String(s || "").toLowerCase().replace(/\s/g, "");
+  if (key === "onreview") return "text-amber-500";
+  if (key === "uploaded") return "text-indigo-600";
+  if (key === "rejected") return "text-rose-600";
+  if (key === "approved") return "text-emerald-600";
+  return "text-gray-500";
+}
+
 export default function ManageDocs() {
-  const [docs, setDocs] = useState([]);           // daftar semua dokumen (untuk metadata)
-  const [docMap, setDocMap] = useState({});       // id -> meta (cepat buat join)
+  const [docs, setDocs] = useState([]);
+  const [docMap, setDocMap] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(true);
 
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState([]);           // hasil semantic search
+  const [hits, setHits] = useState([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [threshold, setThreshold] = useState(0.75);
   const [topK, setTopK] = useState(8);
 
   const navigate = useNavigate();
 
-  // --- STT (mic) opsional; tetap isi input & langsung cari
+  // STT (opsional)
   const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const canMic = !!SR;
   const [listening, setListening] = useState(false);
@@ -41,7 +52,6 @@ export default function ManageDocs() {
     rec.start();
   };
 
-  // --- muat daftar dokumen (untuk metadata di tabel hasil search)
   const loadDocs = useCallback(async () => {
     setLoadingDocs(true);
     try {
@@ -66,7 +76,6 @@ export default function ManageDocs() {
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
-  // --- jalankan semantic search
   const runSearch = useCallback(async (queryStr) => {
     const text = (queryStr ?? q).trim();
     if (!text) { clearSearch(); return; }
@@ -82,11 +91,8 @@ export default function ManageDocs() {
     }
   }, [q, topK, threshold]);
 
-  const clearSearch = () => {
-    setHits([]);               // kosongkan hasil → kembali ke tampilan list semua dokumen
-  };
+  const clearSearch = () => setHits([]);
 
-  // --- hapus dokumen; jika sedang lihat hasil search, refresh hasilnya
   const doDelete = async (id) => {
     if (!confirm("Hapus dokumen ini?")) return;
     try {
@@ -96,117 +102,179 @@ export default function ManageDocs() {
       alert("Gagal menghapus dokumen.");
       return;
     }
-    // refresh metadata list
     await loadDocs();
-    // jika ada query aktif → jalankan ulang search agar hasil terbarui
     if (q.trim()) runSearch(q);
   };
 
   const showingSearch = q.trim().length > 0 && (loadingSearch || hits.length > 0);
 
   return (
-    <div className="card">
-      <div className="toolbar-row">
-        <div className="search-input-outer">
-          <span className="ic">🔎</span>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search for something (semantic)"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (q.trim()) runSearch(q); else clearSearch();
-              }
-            }}
-          />
-          <button
-            type="button"
-            className={"mic-btn" + (listening ? " on" : "")}
-            title={canMic ? "Search by voice" : "Mic not supported"}
-            onClick={startMic}
-            disabled={!canMic}
-          >
-            🎤
-          </button>
-        </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Sidebar tetap fixed */}
+      <Sidebar activePage="Manage Document"/>
 
-        <button className="btn-primary" onClick={() => navigate("/add")}>＋</button>
-      </div>
+      {/* KONTEN: geser 16rem = w-64 */}
+      <div className="ml-64 min-h-screen">
+        {/* Topbar */}
+        <header className="sticky top-0 z-30 border-b bg-white">
+          <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
+            <h1 className="text-lg font-semibold text-[#23358B]">Manage Document</h1>
+          </div>
+        </header>
 
-      {/* PARAM (opsional) */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
-        <small>topK</small>
-        <input type="number" min="1" max="30" value={topK} onChange={e=>setTopK(Number(e.target.value)||8)} style={{ width: 64 }} />
-        <small>threshold</small>
-        <input type="number" step="0.01" min="0" max="1" value={threshold} onChange={e=>setThreshold(Number(e.target.value)||0.75)} style={{ width: 80 }} />
-        {showingSearch && <small style={{ color:"#6b7280" }}>hasil: {hits.length}{loadingSearch?" (loading…)":""}</small>}
-      </div>
+        {/* Main area */}
+        <main className="mx-auto max-w-7xl px-6 py-6">
+          {/* search + add */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search for something"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (q.trim()) runSearch(q); else clearSearch();
+                  }
+                }}
+                className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-12 py-2.5 outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+              <button
+                type="button"
+                title={canMic ? "Search by voice" : "Mic not supported"}
+                onClick={startMic}
+                disabled={!canMic}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-3 py-1.5 text-lg transition
+                  ${listening ? "bg-rose-100" : "hover:bg-gray-100"} ${!canMic ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                🎤
+              </button>
+            </div>
 
-      <div className="table">
-        <div className="t-head">
-          <div className="c-name">Name</div>
-          <div className="c-author">Author</div>
-          <div className="c-date">Date</div>
-          <div className="c-status">Status</div>
-          <div className="c-action">Action</div>
-        </div>
+            <button
+              className="grid h-10 w-10 place-content-center rounded-xl bg-indigo-600 text-white shadow hover:bg-indigo-700"
+              onClick={() => navigate("/add")}
+              title="Add document"
+            >
+              +
+            </button>
+          </div>
 
-        {/* MODE: SEMANTIC SEARCH */}
-        {showingSearch ? (
-          loadingSearch ? (
-            <div className="t-row muted">Searching…</div>
-          ) : hits.length ? (
-            hits.map((h, i) => {
-              const meta = docMap[String(h.docId)] || {};
-              return (
-                <div className="t-row" key={i}>
-                  <div className="c-name">
-                    <div><b>{meta.subject || `(Doc ${String(h.docId).slice(-6)})`}</b></div>
-                    <div className="snippet">
-                      Score: {typeof h.score === "number" ? h.score.toFixed(3) : h.score} • Hal {h.page}
+          {/* parameter kecil (opsional) */}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              <span>topK</span>
+              <input
+                type="number" min="1" max="30" value={topK}
+                onChange={(e)=>setTopK(Number(e.target.value)||8)}
+                className="w-20 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span>threshold</span>
+              <input
+                type="number" step="0.01" min="0" max="1" value={threshold}
+                onChange={(e)=>setThreshold(Number(e.target.value)||0.75)}
+                className="w-24 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+            </div>
+            {showingSearch && (
+              <span>hasil: {hits.length}{loadingSearch?" (loading…)":""}</span>
+            )}
+          </div>
+
+          {/* table card */}
+          <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-2 sm:p-3">
+            {/* head */}
+            <div className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-2 text-sm font-semibold text-gray-500">
+              <div>Name</div>
+              <div>Author</div>
+              <div>Date</div>
+              <div>Status</div>
+              <div className="text-center">Action</div>
+            </div>
+            <div className="h-px w-full bg-gray-100" />
+
+            {/* rows */}
+            {showingSearch ? (
+              loadingSearch ? (
+                <div className="px-3 py-4 text-sm text-gray-500">Searching…</div>
+              ) : hits.length ? (
+                hits.map((h, i) => {
+                  const meta = docMap[String(h.docId)] || {};
+                  return (
+                    <div key={i} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-start px-3 py-3 text-sm">
+                      <div>
+                        <div className="font-semibold text-gray-800">
+                          {meta.subject || `(Doc ${String(h.docId).slice(-6)})`}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Score: {typeof h.score === "number" ? h.score.toFixed(3) : h.score} • Hal {h.page}
+                        </div>
+                        <div className="mt-1 line-clamp-2 text-xs text-gray-500">
+                          {(h.text || "")}
+                        </div>
+                      </div>
+                      <div className="text-gray-700">{meta.author || "—"}</div>
+                      <div className="text-gray-700">{meta.date || "—"}</div>
+                      <div className={`${statusClass(meta.status)} font-medium`}>{meta.status || "—"}</div>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
+                          title="View"
+                          onClick={() => navigate(`/docs/${meta.id || h.docId}`)}
+                        >
+                          👁️
+                        </button>
+                        <button
+                          className="rounded-full border border-rose-200 px-2.5 py-1 text-rose-600 hover:bg-rose-50"
+                          title="Delete"
+                          onClick={() => doDelete(meta.id || h.docId)}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                      <div className="col-span-5 h-px w-full bg-gray-100 mt-3" />
                     </div>
-                    <div className="snippet">{(h.text || "").slice(0, 220)}{(h.text||"").length>220?"…":""}</div>
+                  );
+                })
+              ) : (
+                <div className="px-3 py-4 text-sm text-gray-500">Tidak ada hasil ≥ {threshold}.</div>
+              )
+            ) : loadingDocs ? (
+              <div className="px-3 py-4 text-sm text-gray-500">Loading…</div>
+            ) : docs.length ? (
+              docs.map((d) => (
+                <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">
+                  <div className="text-gray-800">{d.subject || "(tanpa subjek)"}</div>
+                  <div className="text-gray-700">{d.author}</div>
+                  <div className="text-gray-700">{d.date}</div>
+                  <div className={`${statusClass(d.status)} font-medium`}>{d.status}</div>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
+                      title="View"
+                      onClick={() => navigate(`/docs/${d.id}`)}
+                    >
+                      👁️
+                    </button>
+                    <button
+                      className="rounded-full border border-rose-200 px-2.5 py-1 text-rose-600 hover:bg-rose-50"
+                      title="Delete"
+                      onClick={() => doDelete(d.id)}
+                    >
+                      🗑️
+                    </button>
                   </div>
-                  <div className="c-author">{meta.author || "—"}</div>
-                  <div className="c-date">{meta.date || "—"}</div>
-                  <div className={`c-status ${String(meta.status||"").replace(/\s/g,"").toLowerCase()}`}>
-                    {meta.status || "—"}
-                  </div>
-                  <div className="c-action">
-                    <button className="btn-ghost" title="View" onClick={() => navigate(`/docs/${meta.id || h.docId}`)}>👁️</button>
-                    <button className="btn-ghost" title="Delete" onClick={() => doDelete(meta.id || h.docId)}>🗑️</button>
-                  </div>
+                  <div className="col-span-5 h-px w-full bg-gray-100 mt-3" />
                 </div>
-              );
-            })
-          ) : (
-            // 👇 tidak ada hasil, tampilkan pesan sederhana
-            <div className="t-row muted">Tidak ada hasil ≥ {threshold}.</div>
-          )
-        ) : (
-          // MODE LIST DOKUMEN (bukan search)
-          loadingDocs ? (
-            <div className="t-row muted">Loading…</div>
-          ) : docs.length ? (
-            docs.map((d) => (
-              <div className="t-row" key={d.id}>
-                <div className="c-name">{d.subject || "(tanpa subjek)"}</div>
-                <div className="c-author">{d.author}</div>
-                <div className="c-date">{d.date}</div>
-                <div className={`c-status ${String(d.status).replace(/\s/g, "").toLowerCase()}`}>
-                  {d.status}
-                </div>
-                <div className="c-action">
-                  <button className="btn-ghost" title="View" onClick={() => navigate(`/docs/${d.id}`)}>👁️</button>
-                  <button className="btn-ghost" title="Delete" onClick={() => doDelete(d.id)}>🗑️</button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="t-row muted">No documents.</div>
-          )
-        )}
+              ))
+            ) : (
+              <div className="px-3 py-4 text-sm text-gray-500">No documents.</div>
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );
