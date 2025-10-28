@@ -10,7 +10,6 @@ import DashboardPage from "./pages/DashboardPage";
 import AccountDetailPage from "./pages/AccountDetailPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
 
-
 import "./styles.css"
 
 export default function App() {
