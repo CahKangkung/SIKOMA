@@ -1,5 +1,5 @@
 // src/pages/DashboardPage.jsx
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../components/SideBar";
 import Header from "../components/Header";
 
 export default function DashboardPage() {
