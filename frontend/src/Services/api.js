@@ -20,21 +20,6 @@ export const deleteDoc = async (id) => {
   return res.data;
 };
 
-/** ⬇️ BARU: update dokumen (status, komentar, dsb.) */
-export const updateDoc = async (id, patch) => {
-  try {
-    const res = await api.patch(`/docs/${id}`, patch);
-    return res.data;
-  } catch (e) {
-    // fallback jika server tidak menerima PATCH
-    if (e.response?.status === 404 || e.response?.status === 405) {
-      const res2 = await api.put(`/docs/${id}`, patch);
-      return res2.data;
-    }
-    throw e;
-  }
-};
-
 /** (Opsional) kalau approve perlu upload file ke endpoint khusus */
 export const approveWithFile = async (id, file) => {
   const fd = new FormData();
@@ -65,6 +50,17 @@ export const summarizePreview = async (formData) => {
 };
 
 export const updateDocStatus = async (id, payload) => {
-  const res = await api.patch(`/docs/${id}/status`, payload);
-  return res.data; 
+  try {
+    // const res = await api.patch(`/docs/${id}/status`, payload);
+    const res = await api.put(`/docs/${id}`, payload);
+
+    return res.data;
+  } catch (e) {
+    if (e.response?.status === 404 || e.response?.status === 405) {
+      // fallback ke PUT /docs/:id
+      // return res2.data;
+      console.log(e);
+    }
+    // throw e;
+  }
 };

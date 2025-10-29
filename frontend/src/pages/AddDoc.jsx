@@ -65,6 +65,7 @@ export default function AddDoc() {
       fd.append("date", uploadDate);           // upload date
       fd.append("dueDate", due);               // due date tersendiri
       fd.append("status", "Uploaded");         // ← penting: status awal "Uploaded"
+      fd.append("comment", "")
       // notes opsional – kalau mau ikut dikirim:
       if (notes?.trim()) fd.append("notes", notes.trim());
 
