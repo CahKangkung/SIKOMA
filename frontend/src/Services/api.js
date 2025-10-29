@@ -63,3 +63,8 @@ export const summarizePreview = async (formData) => {
   });
   return res.data;
 };
+
+export const updateDocStatus = async (id, payload) => {
+  const res = await api.patch(`/docs/${id}/status`, payload);
+  return res.data; 
+};

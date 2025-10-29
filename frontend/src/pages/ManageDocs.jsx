@@ -4,28 +4,24 @@ import { listDocs, deleteDoc, search as searchApi } from "../Services/api";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 
-const DUMMY_AUTHORS = [
-  "UKM Seni Rupa",
-  "Himpunan Mahasiswa SI",
-  "UKM Robotika",
-  "BEM Fakultas",
-];
+const DUMMY_AUTHORS = ["UKM Seni Rupa", "Himpunan Mahasiswa SI", "UKM Robotika", "BEM Fakultas"];
 
-/* -------- helpers: status mapping & colors -------- */
+/* ---------- helpers: status mapping & colors ---------- */
+// Normalisasi label untuk tampilan, sumber tetap dari DB
 function prettyStatus(s) {
   if (!s) return "On Review";
-  const k = String(s).toLowerCase().replace(/\s/g, "");
-  if (k === "approved") return "Approved";
+  const k = String(s).toLowerCase().replace(/\s|_/g, "");
+  if (k === "approved" || k === "approve") return "Approved";
   if (k === "rejected" || k === "reject") return "Reject";
   if (k === "uploaded") return "Uploaded";
-  return "On Review"; // on_review / default
+  return "On Review";
 }
 function statusClass(s) {
-  const k = String(s).toLowerCase().replace(/\s/g, "");
-  if (k === "approved") return "text-emerald-600";
+  const k = String(s).toLowerCase().replace(/\s|_/g, "");
+  if (k === "approved" || k === "approve") return "text-emerald-600";
   if (k === "rejected" || k === "reject") return "text-rose-600";
   if (k === "uploaded") return "text-indigo-600";
-  return "text-amber-500"; // on_review
+  return "text-amber-500"; // on review / default
 }
 
 export default function ManageDocs() {
@@ -42,9 +38,7 @@ export default function ManageDocs() {
   const navigate = useNavigate();
 
   // STT (opsional)
-  const SR =
-    typeof window !== "undefined" &&
-    (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const canMic = !!SR;
   const [listening, setListening] = useState(false);
   const startMic = () => {
@@ -58,74 +52,77 @@ export default function ManageDocs() {
     rec.onerror = () => setListening(false);
     rec.onresult = (e) => {
       let text = "";
-      for (let i = e.resultIndex; i < e.results.length; i++)
-        text += e.results[i][0].transcript;
+      for (let i = e.resultIndex; i < e.results.length; i++) text += e.results[i][0].transcript;
       const finalText = text.trim();
       setQ(finalText);
-      if (finalText) runSearch(finalText);
-      else clearSearch();
+      if (finalText) runSearch(finalText); else clearSearch();
     };
     rec.start();
   };
 
+  // LOAD LIST DOKUMEN (status langsung dari DB)
   const loadDocs = useCallback(async () => {
     setLoadingDocs(true);
     try {
       const payload = await listDocs({ limit: 500 });
-      const normalized = (payload.items || []).map((d, i) => {
-        const displayStatus = prettyStatus(d.status);
-        return {
-          ...d,
-          // hanya isi author dummy kalau kosong
-          author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
-          // simpan status asli utk API, tapi tampilkan 'displayStatus'
-          _rawStatus: d.status,
-          status: displayStatus,
-        };
-      });
+      // JANGAN menimpa status dari DB — hanya isi fallback author jika kosong
+      const normalized = (payload.items || []).map((d, i) => ({
+        ...d,
+        author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
+        // status: d.status  ← sudah ada dari server; biarkan apa adanya
+      }));
       setDocs(normalized);
-
-      const map = {};
-      for (const d of normalized) map[String(d.id)] = d;
+      const map = {}; normalized.forEach(d => { map[String(d.id)] = d; });
       setDocMap(map);
-    } catch (e) {
-      console.error("load docs error:", e);
-      setDocs([]);
-      setDocMap({});
     } finally {
       setLoadingDocs(false);
     }
   }, []);
 
+  useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  // Auto refresh ketika kembali dari ViewDoc (set flag di ViewDoc setelah submit)
   useEffect(() => {
-    loadDocs();
+    const maybeReload = () => {
+      if (localStorage.getItem("needsReloadDocs") === "1") {
+        loadDocs();
+        localStorage.removeItem("needsReloadDocs");
+      }
+    };
+    // cek segera saat mount
+    maybeReload();
+
+    // refresh saat tab fokus kembali
+    const onFocus = () => maybeReload();
+    window.addEventListener("focus", onFocus);
+
+    // refresh saat visibility berubah (mis. kembali dari halaman lain)
+    const onVis = () => {
+      if (document.visibilityState === "visible") maybeReload();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, [loadDocs]);
 
-  const runSearch = useCallback(
-    async (queryStr) => {
-      const text = (queryStr ?? q).trim();
-      if (!text) {
-        clearSearch();
-        return;
-      }
-      setLoadingSearch(true);
-      try {
-        const res = await searchApi({
-          query: text,
-          topK,
-          threshold,
-          withAnswer: false,
-        });
-        setHits(res.hits || []);
-      } catch (e) {
-        console.error("semantic search error:", e);
-        setHits([]);
-      } finally {
-        setLoadingSearch(false);
-      }
-    },
-    [q, topK, threshold]
-  );
+  // SEMANTIC SEARCH
+  const runSearch = useCallback(async (queryStr) => {
+    const text = (queryStr ?? q).trim();
+    if (!text) return clearSearch();
+    setLoadingSearch(true);
+    try {
+      const res = await searchApi({ query: text, topK, threshold, withAnswer: false });
+      setHits(res?.hits ?? []);
+    } catch (e) {
+      console.error("semantic search error:", e);
+      setHits([]);
+    } finally {
+      setLoadingSearch(false);
+    }
+  }, [q, topK, threshold]);
 
   const clearSearch = () => setHits([]);
 
@@ -151,9 +148,7 @@ export default function ManageDocs() {
       <div className="ml-64 min-h-screen">
         <header className="sticky top-0 z-30 border-b bg-white">
           <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
-            <h1 className="text-lg font-semibold text-[#23358B]">
-              Manage Document
-            </h1>
+            <h1 className="text-lg font-semibold text-[#23358B]">Manage Document</h1>
           </div>
         </header>
 
@@ -161,9 +156,7 @@ export default function ManageDocs() {
           {/* Search + Add */}
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                🔎
-              </span>
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -171,8 +164,7 @@ export default function ManageDocs() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    if (q.trim()) runSearch(q);
-                    else clearSearch();
+                    if (q.trim()) runSearch(q); else clearSearch();
                   }
                 }}
                 className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-12 py-2.5 outline-none focus:ring-2 focus:ring-indigo-300"
@@ -183,9 +175,7 @@ export default function ManageDocs() {
                 onClick={startMic}
                 disabled={!canMic}
                 className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-3 py-1.5 text-lg transition
-                  ${listening ? "bg-rose-100" : "hover:bg-gray-100"} ${
-                  !canMic ? "opacity-40 cursor-not-allowed" : ""
-                }`}
+                  ${listening ? "bg-rose-100" : "hover:bg-gray-100"} ${!canMic ? "opacity-40 cursor-not-allowed" : ""}`}
               >
                 🎤
               </button>
@@ -193,7 +183,7 @@ export default function ManageDocs() {
 
             <button
               className="grid h-10 w-10 place-content-center rounded-xl bg-indigo-600 text-white shadow hover:bg-indigo-700"
-              onClick={() => navigate("/add")}
+              onClick={() => navigate("/manage-document/add")}
               title="Add document"
             >
               +
@@ -205,10 +195,7 @@ export default function ManageDocs() {
             <div className="flex items-center gap-2">
               <span>topK</span>
               <input
-                type="number"
-                min="1"
-                max="30"
-                value={topK}
+                type="number" min="1" max="30" value={topK}
                 onChange={(e) => setTopK(Number(e.target.value) || 8)}
                 className="w-20 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
               />
@@ -216,21 +203,12 @@ export default function ManageDocs() {
             <div className="flex items-center gap-2">
               <span>threshold</span>
               <input
-                type="number"
-                step="0.01"
-                min="0"
-                max="1"
-                value={threshold}
+                type="number" step="0.01" min="0" max="1" value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value) || 0.75)}
                 className="w-24 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
               />
             </div>
-            {showingSearch && (
-              <span>
-                hasil: {hits.length}
-                {loadingSearch ? " (loading…)" : ""}
-              </span>
-            )}
+            {showingSearch && <span>hasil: {hits.length}{loadingSearch ? " (loading…)" : ""}</span>}
           </div>
 
           {/* Table */}
@@ -251,39 +229,24 @@ export default function ManageDocs() {
               ) : hits.length ? (
                 hits.map((h, i) => {
                   const meta = docMap[String(h.docId)] || {};
-                  const displayStatus = prettyStatus(meta._rawStatus ?? meta.status);
+                  const displayStatus = prettyStatus(meta.status);
                   return (
-                    <div
-                      key={i}
-                      className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-start px-3 py-3 text-sm"
-                    >
+                    <div key={i} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-start px-3 py-3 text-sm">
                       <div>
-                        <div className="font-semibold text-gray-800">
-                          {meta.subject || `(Doc ${String(h.docId).slice(-6)})`}
-                        </div>
+                        <div className="font-semibold text-gray-800">{meta.subject || `(Doc ${String(h.docId).slice(-6)})`}</div>
                         <div className="text-xs text-gray-500">
-                          Score:{" "}
-                          {typeof h.score === "number"
-                            ? h.score.toFixed(3)
-                            : h.score}{" "}
-                          • Hal {h.page}
+                          Score: {typeof h.score === "number" ? h.score.toFixed(3) : h.score} • Hal {h.page}
                         </div>
-                        <div className="mt-1 line-clamp-2 text-xs text-gray-500">
-                          {h.text || ""}
-                        </div>
+                        <div className="mt-1 line-clamp-2 text-xs text-gray-500">{h.text || ""}</div>
                       </div>
                       <div className="text-gray-700">{meta.author || "—"}</div>
                       <div className="text-gray-700">{meta.date || "—"}</div>
-                      <div className={`${statusClass(displayStatus)} font-medium`}>
-                        {displayStatus}
-                      </div>
+                      <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                       <div className="flex items-center justify-center gap-2">
                         <button
                           className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
                           title="View"
-                          onClick={() =>
-                            navigate(`/manage-document/${meta.id || h.docId}`)
-                          }
+                          onClick={() => navigate(`/manage-document/${meta.id || h.docId}`)}
                         >
                           👁️
                         </button>
@@ -300,29 +263,20 @@ export default function ManageDocs() {
                   );
                 })
               ) : (
-                <div className="px-3 py-4 text-sm text-gray-500">
-                  Tidak ada hasil ≥ {threshold}.
-                </div>
+                <div className="px-3 py-4 text-sm text-gray-500">Tidak ada hasil ≥ {threshold}.</div>
               )
             ) : // List mode
             loadingDocs ? (
               <div className="px-3 py-4 text-sm text-gray-500">Loading…</div>
             ) : docs.length ? (
               docs.map((d) => {
-                const displayStatus = prettyStatus(d._rawStatus ?? d.status);
+                const displayStatus = prettyStatus(d.status);
                 return (
-                  <div
-                    key={d.id}
-                    className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm"
-                  >
-                    <div className="text-gray-800">
-                      {d.subject || "(tanpa subjek)"}
-                    </div>
+                  <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">
+                    <div className="text-gray-800">{d.subject || "(tanpa subjek)"}</div>
                     <div className="text-gray-700">{d.author}</div>
                     <div className="text-gray-700">{d.date}</div>
-                    <div className={`${statusClass(displayStatus)} font-medium`}>
-                      {displayStatus}
-                    </div>
+                    <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                     <div className="flex items-center justify-center gap-2">
                       <button
                         className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
