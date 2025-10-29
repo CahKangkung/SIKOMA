@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/SideBar";
-import Header from "../components/Header";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, User as UserIcon } from "lucide-react";
 
 export default function CreateOrganizationPage() {
   const navigate = useNavigate();
@@ -15,120 +13,112 @@ export default function CreateOrganizationPage() {
     e.preventDefault();
     setError("");
 
-    // validasi sederhana
-    if (!name.trim()) {
-      setError("Organization name is required.");
-      return;
-    }
-    if (name.trim().length < 3) {
-      setError("Organization name must be at least 3 characters.");
-      return;
-    }
+    // Validasi input
+    if (!name.trim()) return setError("Organization name is required.");
+    if (name.trim().length < 3)
+      return setError("Organization name must be at least 3 characters.");
 
     try {
       setSubmitting(true);
-
-      // TODO: ganti endpoint sesuai backend kamu
-      const res = await fetch("/api/organizations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), description: desc.trim() }),
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || "Failed to create organization");
-      }
-
-      // selesai → balik ke daftar organisasi (atau ke org current)
-      navigate("/organizations?mode=current");
-    } catch (err) {
-      setError(err.message || "Something went wrong.");
+      // Simulasi submit data
+      await new Promise((r) => setTimeout(r, 1000));
+      navigate("/organizations/current");
+    } catch {
+      setError("Something went wrong.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <section className="min-h-screen flex flex-col justify-between bg-gray-50">
+      {/* ===== Header ===== */}
+      <header className="flex justify-between items-center px-6 py-4 border-b bg-white">
+        {/* Tombol Return */}
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-sm text-[#23358B] hover:underline"
+        >
+          <ChevronLeft size={18} /> Return
+        </button>
 
-      <div className="flex-1 ml-64 flex flex-col">
-        <Header title="Create Organization" />
+        {/* User Info */}
+        <div className="flex items-center gap-2 text-[#23358B] font-medium">
+          <span>User</span>
+          <UserIcon className="w-5 h-5" />
+        </div>
+      </header>
 
-        <main className="p-8">
-          {/* Return link */}
-          <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 text-sm text-[#23358B] hover:underline"
-          >
-            <ChevronLeft size={18} /> Return
-          </button>
+      {/* ===== Main Content ===== */}
+      <main className="flex flex-col items-center px-6 py-10 bg-grey-200">
+        {/* Judul Halaman */}
+        <h1 className="text-3xl font-extrabold text-gray-900 mb-10 text-center">
+          Create Organization
+        </h1>
 
-          <h1 className="mt-2 text-3xl font-extrabold text-gray-900">
-            Create Organization
-          </h1>
-
-          <form
-            onSubmit={handleSubmit}
-            className="mt-6 max-w-2xl space-y-5 bg-white p-6 rounded-2xl border"
-          >
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="orgName"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Organization Name
-              </label>
-              <input
-                id="orgName"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-xl border px-3 py-2 outline-none focus:border-[#23358B]"
-                placeholder="ex: Sistem Informasi Fakultas"
-              />
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="w-full max-w-lg flex flex-col gap-5"
+        >
+          {/* Error Message */}
+          {error && (
+            <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {error}
             </div>
+          )}
 
-            <div>
-              <label
-                htmlFor="orgDesc"
-                className="block text-sm font-medium text-gray-700"
-              >
-                Organization Description
-              </label>
-              <textarea
-                id="orgDesc"
-                rows={6}
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                className="mt-1 w-full rounded-xl border px-3 py-2 outline-none focus:border-[#23358B] resize-y"
-                placeholder="Deskripsi singkat organisasi…"
-              />
-            </div>
+          {/* Input: Organization Name */}
+          <div className="text-left">
+            <label
+              htmlFor="orgName"
+              className="block text-sm font-semibold text-gray-800 mb-1"
+            >
+              Organization Name
+            </label>
+            <input
+              id="orgName"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="bg-white w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-[#23358B]"
+            />
+          </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="inline-flex items-center justify-center rounded-xl bg-[#23358B] px-5 py-2 text-white shadow hover:opacity-90 disabled:opacity-60"
-              >
-                {submitting ? "Submitting…" : "Submit"}
-              </button>
-            </div>
-          </form>
+          {/* Input: Description */}
+          <div className="text-left">
+            <label
+              htmlFor="orgDesc"
+              className="block text-sm font-semibold text-gray-800 mb-1"
+            >
+              Organization Description
+            </label>
+            <textarea
+              id="orgDesc"
+              rows={5}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              className="bg-white w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-[#23358B] resize-none"
+            />
+          </div>
 
-          <footer className="text-center py-6 text-sm text-neutral-500">
-            © 2025 SIKOMA. Simplify, track and connect with SIKOMA
-          </footer>
-        </main>
-      </div>
-    </div>
+          {/* Tombol Submit kanan bawah */}
+          <div className="flex justify-end mt-2">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="bg-[#23358B] text-white px-5 py-2 rounded-md text-sm hover:opacity-90 disabled:opacity-60"
+            >
+              {submitting ? "Submitting..." : "Submit"}
+            </button>
+          </div>
+        </form>
+      </main>
+
+      {/* ===== Footer ===== */}
+      <footer className="bg-white text-center py-6 text-xs text-neutral-500 border-t">
+        © 2025 SIKOMA. Simplify, track and connect with SIKOMA
+      </footer>
+    </section>
   );
 }

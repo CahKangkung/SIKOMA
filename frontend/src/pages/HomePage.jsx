@@ -30,7 +30,6 @@ export default function HomePage() {
 
   return (
     <section className="min-h-screen flex flex-col justify-between bg-white">
-      {/* Navbar */}
       <header className="flex justify-between items-center px-10 py-6 border-b">
         {/* Kiri: logo */}
         <div className="flex items-center gap-2">
@@ -87,29 +86,38 @@ export default function HomePage() {
         </p>
 
         {/* Cards */}
-        <div
-          onClick={() => navigate("/organizations?mode=join")}
-          className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6"
+         <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {/* Join */}
+          <button
+            onClick={() => navigate("/home/join")}
+            className="rounded-xl border p-8 hover:shadow-lg transition"
           >
-          <button className="rounded-xl border p-8 hover:shadow-lg transition">
             <Building2 className="w-10 h-10 mx-auto text-[#5A6BF5]" />
-            <p className="mt-4 font-semibold text-neutral-800">Join Existing Organization</p>
+            <p className="mt-4 font-semibold text-neutral-800">
+              Join Existing Organization
+            </p>
           </button>
 
-          <button 
-            onClick={navigate("/organizations?mode=create")}
+          {/* Create */}
+          <button
+            onClick={() => navigate("/home/new")}
             className="rounded-xl border p-8 hover:shadow-lg transition"
           >
             <PlusSquare className="w-10 h-10 mx-auto text-green-600" />
-            <p className="mt-4 font-semibold text-neutral-800">Create New Organization</p>
+            <p className="mt-4 font-semibold text-neutral-800">
+              Create New Organization
+            </p>
           </button>
 
+          {/* Current */}
           <button
-            onClick={navigate("/organizations?mode=current")}
+            onClick={() => navigate("/home/current")}
             className="rounded-xl border p-8 hover:shadow-lg transition"
           >
             <UserRound className="w-10 h-10 mx-auto text-orange-500" />
-            <p className="mt-4 font-semibold text-neutral-800">Current Organization</p>
+            <p className="mt-4 font-semibold text-neutral-800">
+              Current Organization
+            </p>
           </button>
         </div>
       </main>

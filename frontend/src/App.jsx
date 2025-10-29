@@ -11,8 +11,9 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import AccountDetailPage from "./pages/AccountDetailPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
 import ManageDocs from './pages/ManageDocs';
-import OrganizationsPage from "./pages/OrganizationPage";
+import CurrentOrganizationsPage from "./pages/CurrentOrganizationPage.jsx";
 import CreateOrganizationPage from "./pages/CreateOrganizationPage.jsx";
+import JoinOrganizationPage from "./pages/JoinOrganizationPage.jsx";
 
 
 export default function App() {
@@ -28,8 +29,10 @@ export default function App() {
       <Route path="/account" element={<AccountDetailPage />} />
       <Route path="/settings" element={<AccountSettingsPage />} />
       <Route path="/ManageDocument" element={<ManageDocs />} />
-      <Route path="/organizations" element={<OrganizationsPage />} />
-      <Route path="/organizations/new" element={<CreateOrganizationPage />} />
+      <Route path="/home/join" element={<JoinOrganizationPage />} />
+      <Route path="/home/current" element={<CurrentOrganizationsPage />} />
+      <Route path="/home/new" element={<CreateOrganizationPage />} />
+
     </Routes>
   );
 }
