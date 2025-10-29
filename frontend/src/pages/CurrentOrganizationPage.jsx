@@ -47,6 +47,26 @@ export default function CurrentOrganizationsPage() {
       );
     }
 
+    if (filter === "pending") {
+      return (
+        <>
+          <h4 className="font-semibold text-gray-800">No Pending Requests</h4>
+          <p className="mt-1 text-sm text-gray-500">
+            You don’t have any pending join requests. Try joining an organization to see it here.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => navigate("/home/join")}
+              className="px-5 py-2 rounded-xl bg-[#23358B] text-white hover:opacity-90"
+            >
+              JOIN ORGANIZATION
+            </button>
+          </div>
+        </>
+      );
+    }
+
+
     // Default (All)
     return (
       <>
@@ -121,6 +141,7 @@ export default function CurrentOrganizationsPage() {
               <option value="all">All</option>
               <option value="joined">Joined</option>
               <option value="created">Created</option>
+              <option value="pending">Pending</option>
             </select>
 
             <div className="relative flex-1 w-full sm:max-w-xl">

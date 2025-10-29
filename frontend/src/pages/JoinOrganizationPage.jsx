@@ -23,8 +23,26 @@ export default function JoinOrganizationPage() {
 
   // Fungsi join confirm
   const handleConfirm = () => {
-    alert(`You requested to join ${selectedOrg.name}. Please wait for author approval.`);
-    setSelectedOrg(null);
+    // Ambil daftar pending dari localStorage
+    const pendingList = JSON.parse(localStorage.getItem("pendingRequests") || "[]");
+
+    // Cek apakah sudah pernah join organisasi ini
+    const alreadyPending = pendingList.some((org) => org.id === selectedOrg.id);
+    if (alreadyPending) {
+      alert(`You have already requested to join ${selectedOrg.name}.`);
+      setSelectedOrg(null);
+      return;
+    }
+
+    // Tambahkan ke pending list
+    const newPending = [...pendingList, selectedOrg];
+    localStorage.setItem("pendingRequests", JSON.stringify(newPending));
+
+    // Notifikasi sukses
+    alert(`Request to join "${selectedOrg.name}" sent! Redirecting to Pending...`);
+
+    // Arahkan user ke halaman Current Organization (tab pending)
+    navigate("/home/current?tab=pending");
   };
 
   return (
