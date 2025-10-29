@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE, // contoh: http://localhost:8080/api
+  baseURL: import.meta.env.VITE_API_BASE, 
   withCredentials: false,
 });
 
@@ -20,7 +20,6 @@ export const deleteDoc = async (id) => {
   return res.data;
 };
 
-/** (Opsional) kalau approve perlu upload file ke endpoint khusus */
 export const approveWithFile = async (id, file) => {
   const fd = new FormData();
   fd.append("file", file);
@@ -51,16 +50,13 @@ export const summarizePreview = async (formData) => {
 
 export const updateDocStatus = async (id, payload) => {
   try {
-    // const res = await api.patch(`/docs/${id}/status`, payload);
     const res = await api.put(`/docs/${id}`, payload);
 
     return res.data;
   } catch (e) {
     if (e.response?.status === 404 || e.response?.status === 405) {
-      // fallback ke PUT /docs/:id
-      // return res2.data;
       console.log(e);
     }
-    // throw e;
+    throw e;
   }
 };

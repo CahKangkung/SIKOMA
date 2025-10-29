@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+// src/pages/ViewDoc.jsx
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getDoc, deleteDoc, upload, updateDocStatus } from "../Services/api";
 import Sidebar from "../components/Sidebar";
-import { ArrowLeft, Trash2, Download, CheckCircle2, UploadCloud, Cog } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  Download,
+  CheckCircle2,
+  UploadCloud,
+  Cog,
+  XCircle,              // ⬅️ tambah ikon X
+} from "lucide-react";
 
 /* --- helpers --- */
 const canon = (s) => {
@@ -19,21 +28,32 @@ const nextActionFromStatus = (canonStatus) => {
   return canonStatus || "On Review";
 };
 
-function Step({ icon, label, active }) {
+/* Step with dynamic color */
+function Step({ icon, label, active, color = "blue" }) {
+  const ring = {
+    blue: "border-blue-300 bg-blue-200 text-blue-800",
+    yellow: "border-yellow-300 bg-yellow-200 text-yellow-800",
+    green: "border-green-300 bg-green-200 text-green-800",
+    rose: "border-rose-300 bg-rose-200 text-rose-800",
+    gray: "border-gray-200 bg-gray-100 text-gray-400",
+  };
+  const text = {
+    blue: "text-blue-800",
+    yellow: "text-yellow-800",
+    green: "text-green-800",
+    rose: "text-rose-800",
+    gray: "text-gray-400",
+  };
+
+  const ringCls = active ? ring[color] : ring.gray;
+  const textCls = active ? text[color] : text.gray;
+
   return (
     <div className="flex flex-col items-center text-center">
-      <div
-        className={`grid h-24 w-24 place-content-center rounded-full border-8 ${
-          active
-            ? "border-indigo-200 bg-indigo-100 text-indigo-700"
-            : "border-gray-200 bg-gray-100 text-gray-400"
-        }`}
-      >
+      <div className={`grid h-24 w-24 place-content-center rounded-full border-8 ${ringCls}`}>
         {icon}
       </div>
-      <div className={`mt-3 text-lg font-semibold ${active ? "text-indigo-700" : "text-gray-400"}`}>
-        {label}
-      </div>
+      <div className={`mt-3 text-lg font-semibold ${textCls}`}>{label}</div>
     </div>
   );
 }
@@ -54,6 +74,9 @@ export default function ViewDoc() {
   const [doc, setDoc] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
+  // lock submit saat proses
+  const [saving, setSaving] = useState(false);
 
   // form state (tidak menulis ke DB sampai submit)
   const [actionStatus, setActionStatus] = useState(null);
@@ -97,19 +120,14 @@ export default function ViewDoc() {
   const isPdf = attach?.mime === "application/pdf";
   const fileUrl = isPdf && attach ? `${apiBase}/files/${attach.fileId}` : null;
 
-  const activeStepIndex = useMemo(() => {
-    const s = canon(doc?.status);
-    if (s === "Approved") return 2;
-    if (s === "On Review") return 1;
-    return 0; // Uploaded
-  }, [doc]);
-
   // Submit: update ke DB, lalu refresh UI dari respons server
   const submitAction = async (e) => {
     e.preventDefault();
-    if (!doc) return;
+    if (!doc || saving) return; // cegah dobel submit
 
     try {
+      setSaving(true);
+
       const status = (actionStatus && canon(actionStatus)) || "On Review";
       const payload = { status };
 
@@ -120,6 +138,7 @@ export default function ViewDoc() {
       if (status === "Approved") {
         if (!approvalFile) {
           alert("Saat Approved, wajib unggah dokumen pengganti.");
+          setSaving(false);
           return;
         }
         const fd = new FormData();
@@ -127,9 +146,6 @@ export default function ViewDoc() {
         const up = await upload(fd); // server mengembalikan fileId
         payload.approvalFileId = up?.fileId || up?.id;
       }
-
-      // log dev (optional)
-      // console.log("[ViewDoc] PATCH payload:", payload, "id:", (doc._id || doc.id));
 
       const updated = await updateDocStatus(doc._id || doc.id, payload);
 
@@ -149,6 +165,8 @@ export default function ViewDoc() {
     } catch (e2) {
       console.error(e2);
       alert("Gagal menyimpan status.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -183,19 +201,65 @@ export default function ViewDoc() {
 
                 <button
                   onClick={onDelete}
-                  className="inline-flex items-center gap-2 rounded-full bg-rose-500/90 px-4 py-2 text-white hover:bg-rose-600"
+                  disabled={saving}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-white ${
+                    saving
+                      ? "bg-rose-300 cursor-not-allowed"
+                      : "bg-rose-500/90 hover:bg-rose-600"
+                  }`}
                 >
                   <Trash2 className="h-4 w-4" />
                   Delete
                 </button>
               </div>
 
-              {/* Stepper */}
+              {/* Stepper dengan warna dinamis */}
               <div className="rounded-2xl bg-indigo-50/40 p-6">
                 <div className="flex items-center justify-center gap-16">
-                  <Step icon={<UploadCloud className="h-8 w-8" />} label="Uploaded" active={activeStepIndex >= 0} />
-                  <Step icon={<Cog className="h-8 w-8" />} label="On Review" active={activeStepIndex >= 1} />
-                  <Step icon={<CheckCircle2 className="h-8 w-8" />} label="Approved" active={activeStepIndex >= 2} />
+                  {(() => {
+                    const s = canon(doc?.status); // "Uploaded" | "On Review" | "Approved" | "Reject"
+
+                    // 1) Uploaded → biru (active)
+                    const uploaded = {
+                      label: "Uploaded",
+                      icon: <UploadCloud className="h-8 w-8" />,
+                      active: true,
+                      color: "blue",
+                    };
+
+                    // 2) On Review → kuning (active kalau status >= on review)
+                    const onReview = {
+                      label: "On Review",
+                      icon: <Cog className="h-8 w-8" />,
+                      active: s === "On Review" || s === "Approved" || s === "Reject",
+                      color: "yellow",
+                    };
+
+                    // 3) Final step: Approved (hijau) atau Rejected (merah)
+                    const isRejected = s === "Reject";
+                    const final = isRejected
+                      ? {
+                          label: "Rejected",
+                          icon: <XCircle className="h-8 w-8" />,
+                          active: true,
+                          color: "rose",
+                        }
+                      : {
+                          label: "Approved",
+                          icon: <CheckCircle2 className="h-8 w-8" />,
+                          active: s === "Approved",
+                          color: "green",
+                        };
+
+                    // Render 3 step berurutan
+                    return (
+                      <>
+                        <Step {...uploaded} />
+                        <Step {...onReview} />
+                        <Step {...final} />
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -248,7 +312,13 @@ export default function ViewDoc() {
               </div>
 
               {/* ACTION */}
-              <form onSubmit={submitAction} className="mt-10">
+              <form
+                onSubmit={submitAction}
+                onKeyDown={(e) => {
+                  if (saving && e.key === "Enter") e.preventDefault();
+                }}
+                className="mt-10"
+              >
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div>
                     <div className="font-semibold text-[#23358B]">Set Status</div>
@@ -259,7 +329,8 @@ export default function ViewDoc() {
                         setComment("");
                         setApprovalFile(null);
                       }}
-                      className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
+                      disabled={saving}
+                      className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
                     >
                       <option>On Review</option>
                       <option>Approved</option>
@@ -270,11 +341,16 @@ export default function ViewDoc() {
                   {actionStatus === "Approved" && (
                     <div>
                       <div className="font-semibold text-[#23358B]">Upload Document</div>
-                      <label className="mt-2 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/30 p-8 text-center hover:bg-indigo-50">
+                      <label
+                        className={`mt-2 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/30 p-8 text-center hover:bg-indigo-50 ${
+                          saving ? "pointer-events-none opacity-60" : ""
+                        }`}
+                      >
                         <input
                           type="file"
                           className="hidden"
                           onChange={(e) => setApprovalFile(e.target.files?.[0] || null)}
+                          disabled={saving}
                         />
                         <div className="text-5xl">📥</div>
                         <div className="mt-1 text-sm text-gray-600">
@@ -298,7 +374,8 @@ export default function ViewDoc() {
                         placeholder="Alasan penolakan"
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
-                        className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
+                        disabled={saving}
+                        className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
                       />
                     </div>
                   )}
@@ -307,9 +384,13 @@ export default function ViewDoc() {
                 <div className="mt-8 flex justify-end">
                   <button
                     type="submit"
-                    className="rounded-xl bg-[#133962] px-8 py-3 text-white font-semibold hover:opacity-90"
+                    disabled={saving}
+                    aria-disabled={saving}
+                    className={`rounded-xl px-8 py-3 text-white font-semibold transition ${
+                      saving ? "bg-gray-400 cursor-not-allowed" : "bg-[#133962] hover:opacity-90"
+                    }`}
                   >
-                    Submit
+                    {saving ? "Processing…" : "Submit"}
                   </button>
                 </div>
               </form>
