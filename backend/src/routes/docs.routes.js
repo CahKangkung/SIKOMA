@@ -1,4 +1,3 @@
-// docs.routes.js
 import { Router } from "express";
 import { getDb, getBucket } from "../services/db.js";
 import { letters } from "../models/letters.js";
@@ -7,20 +6,10 @@ import { ObjectId } from "mongodb";
 
 const router = Router();
 
-// util kecil
-const toId = (v) => (ObjectId.isValid(v) ? new ObjectId(v) : v);
-const CANON = (s) => {
-  const k = String(s || "").toLowerCase().replace(/\s/g, "");
-  if (k === "uploaded") return "Uploaded";
-  if (k === "approved" || k === "approve") return "Approved";
-  if (k === "reject" || k === "rejected") return "Reject";
-  return "On Review";
-};
-
-/* ===========================
-   LIST: GET /docs
-   - sekarang termasuk field `status`
-=========================== */
+/* =========================
+   LIST DOKUMEN
+   GET /api/docs?limit=&page=
+   ========================= */
 router.get("/docs", async (req, res, next) => {
   try {
     const db = await getDb();
@@ -30,21 +19,10 @@ router.get("/docs", async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page || "1", 10), 1);
     const skip = (page - 1) * limit;
 
-    const projection = {
-      subject: 1,
-      number: 1,
-      date: 1,
-      status: 1,           // ← penting
-      author: 1,
-      recipient: 1,
-      attachments: 1,
-      createdAt: 1,
-      updatedAt: 1,
-    };
-
     const [items, total] = await Promise.all([
       lcol
-        .find({}, { projection })
+        // ⬇️ pastikan status ikut diproyeksikan
+        .find({}, { projection: { subject: 1, number: 1, date: 1, status: 1, attachments: 1, createdAt: 1, updatedAt: 1, author: 1, recipient: 1 } })
         .sort({ updatedAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -56,47 +34,47 @@ router.get("/docs", async (req, res, next) => {
       page,
       limit,
       total,
-      items: items.map((d) => {
-        const first = d.attachments?.[0] || null;
-        return {
-          id: d._id, // FE kamu pakai `id`
-          subject: d.subject,
-          number: d.number,
-          date: d.date,
-          status: CANON(d.status),            // ← pastikan rapi
-          author: d.author ?? null,
-          recipient: d.recipient ?? null,
-          hasPdf: !!(first && first.mime === "application/pdf"),
-          attachment: first,
-          createdAt: d.createdAt,
-          updatedAt: d.updatedAt,
-        };
-      }),
+      items: items.map((d) => ({
+        // ⬇️ kembalikan id sebagai string agar FE tidak jadi [object Object]
+        id: String(d._id),
+        subject: d.subject,
+        number: d.number,
+        date: d.date,
+        status: d.status, // ⬅️ perbaikan: sebelumnya salah referensi doc.status
+        author: d.author ?? null,
+        recipient: d.recipient ?? null,
+        hasPdf: !!(d.attachments && d.attachments[0]?.mime === "application/pdf"),
+        attachment: d.attachments?.[0] || null,
+        updatedAt: d.updatedAt,
+        createdAt: d.createdAt,
+      })),
     });
   } catch (e) {
     next(e);
   }
 });
 
-/* ===========================
-   DETAIL: GET /docs/:id
-=========================== */
+/* =========================
+   DETAIL DOKUMEN
+   GET /api/docs/:id
+   ========================= */
 router.get("/docs/:id", async (req, res, next) => {
   try {
     const db = await getDb();
     const lcol = letters(db);
-    const _id = toId(req.params.id);
+    const id = req.params.id;
+    const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
 
     const doc = await lcol.findOne({ _id });
     if (!doc) return res.status(404).json({ error: "not_found" });
 
     res.json({
-      _id: doc._id,
+      _id: String(doc._id),
       subject: doc.subject,
       number: doc.number,
       date: doc.date,
       summary: doc.summary || "",
-      status: CANON(doc.status),         // seragam
+      status: doc.status,
       author: doc.author ?? null,
       recipient: doc.recipient ?? null,
       attachments: doc.attachments || [],
@@ -108,65 +86,81 @@ router.get("/docs/:id", async (req, res, next) => {
   }
 });
 
-/* ===========================
-   UPDATE STATUS: PATCH /docs/:id/status
-   Body: { status: "Uploaded" | "On Review" | "Approved" | "Reject", comment?, approvalFileId? }
-   - Untuk saat ini kita simpan hanya `status` + `updatedAt`.
-   - Kalau mau, kamu bisa tambahkan penyimpanan comment / approvalFileId di sini.
-=========================== */
+/* =========================
+   UPDATE STATUS (APPROVE/REJECT/ON REVIEW)
+   PATCH /api/docs/:id/status
+   Body: { status, comment?, approvalFileId? }
+   ========================= */
 router.patch("/docs/:id/status", async (req, res, next) => {
   try {
     const db = await getDb();
     const lcol = letters(db);
-    const _id = toId(req.params.id);
 
-    const raw = String(req.body?.status || "");
-    const normalized = CANON(raw);
+    const id = req.params.id;
+    const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
 
-    const ALLOWED = ["Uploaded", "On Review", "Approved", "Reject"];
-    if (!ALLOWED.includes(normalized)) {
-      return res.status(400).json({ error: "invalid_status" });
+    const { status, comment, approvalFileId } = req.body || {};
+    if (!status) return res.status(400).json({ error: "missing_status" });
+
+    // normalisasi status
+    const norm = String(status || "").toLowerCase().replace(/\s|_/g, "");
+    const toSave =
+      norm === "approved" || norm === "approve"
+        ? "Approved"
+        : norm === "reject" || norm === "rejected"
+        ? "Reject"
+        : "On Review";
+
+    const updateData = {
+      status: toSave,
+      updatedAt: new Date(),
+    };
+
+    if (comment) updateData.comment = comment;
+
+    if (approvalFileId) {
+      // Jika Approved + upload file baru → ganti attachments
+      updateData.attachments = [
+        {
+          fileId: approvalFileId,
+          mime: "application/pdf", // sesuaikan jika file bisa non-PDF
+        },
+      ];
     }
 
-    const now = new Date();
-    await lcol.updateOne(
+    // Kompatibel dengan driver v3/v4
+    const result = await lcol.findOneAndUpdate(
       { _id },
-      {
-        $set: {
-          status: normalized,
-          updatedAt: now,
-          // Optional:
-          // "review.comment": req.body.comment ?? null,
-          // "approval.fileId": req.body.approvalFileId ?? null,
-        },
-      }
+      { $set: updateData },
+      { returnDocument: "after", returnOriginal: false }
     );
 
-    // Kembalikan dokumen terbaru (format seperti GET /docs/:id)
-    const doc = await lcol.findOne({ _id });
-    if (!doc) return res.status(404).json({ error: "not_found" });
+    const updated = result.value;
+    if (!updated) return res.status(404).json({ error: "not_found" });
 
     res.json({
-      _id: doc._id,
-      subject: doc.subject,
-      number: doc.number,
-      date: doc.date,
-      summary: doc.summary || "",
-      status: CANON(doc.status),
-      author: doc.author ?? null,
-      recipient: doc.recipient ?? null,
-      attachments: doc.attachments || [],
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
+      _id: String(updated._id),
+      subject: updated.subject,
+      number: updated.number,
+      date: updated.date,
+      summary: updated.summary || "",
+      status: updated.status,
+      author: updated.author ?? null,
+      recipient: updated.recipient ?? null,
+      attachments: updated.attachments || [],
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
     });
   } catch (e) {
+    console.error("update status error:", e);
     next(e);
   }
 });
 
-/* ===========================
-   DELETE: DELETE /docs/:id
-=========================== */
+/* =========================
+   HAPUS DOKUMEN
+   DELETE /api/docs/:id
+   ========================= */
 router.delete("/docs/:id", async (req, res, next) => {
   try {
     const db = await getDb();
@@ -174,7 +168,8 @@ router.delete("/docs/:id", async (req, res, next) => {
     const lcol = letters(db);
     const ccol = letterChunks(db);
 
-    const _id = toId(req.params.id);
+    const id = req.params.id;
+    const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
 
     const doc = await lcol.findOne({ _id });
     if (!doc) return res.status(404).json({ error: "not_found" });
@@ -184,7 +179,7 @@ router.delete("/docs/:id", async (req, res, next) => {
       for (const att of doc.attachments) {
         if (att?.fileId) {
           try {
-            const fid = toId(att.fileId);
+            const fid = ObjectId.isValid(att.fileId) ? new ObjectId(att.fileId) : att.fileId;
             await bucket.delete(fid);
             deletedFiles++;
           } catch (e) {
@@ -206,44 +201,6 @@ router.delete("/docs/:id", async (req, res, next) => {
       },
     });
   } catch (e) {
-    next(e);
-  }
-});
-
-// PATCH: update status / comment / approval file
-router.patch("/docs/:id/status", async (req, res, next) => {
-  try {
-    const db = await getDb();
-    const lcol = letters(db);
-    const id = req.params.id;
-    const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
-
-    const { status, comment, approvalFileId } = req.body || {};
-
-    const updateData = {
-      updatedAt: new Date(),
-    };
-
-    if (status) updateData.status = status;
-    if (comment) updateData.comment = comment;
-    if (approvalFileId) {
-      updateData.attachments = [
-        { fileId: approvalFileId, mime: "application/pdf" }, // tambahkan sesuai kebutuhan
-      ];
-    }
-
-    const result = await lcol.findOneAndUpdate(
-      { _id },
-      { $set: updateData },
-      { returnDocument: "after" }
-    );
-
-    if (!result.value)
-      return res.status(404).json({ error: "not_found" });
-
-    res.json(result.value);
-  } catch (e) {
-    console.error("update status error:", e);
     next(e);
   }
 });
