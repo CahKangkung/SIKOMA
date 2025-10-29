@@ -33,7 +33,7 @@ export default function HomePage() {
       <header className="flex justify-between items-center px-10 py-6 border-b">
         {/* Kiri: logo */}
         <div className="flex items-center gap-2">
-          <img src={logo} alt="SIKOMA" className="h-8 w-auto" />
+          <img src={logo} alt="SIKOMA" className="h-8 w-auto md:h-10" />
         </div>
 
         {/* Kanan: User menu */}
