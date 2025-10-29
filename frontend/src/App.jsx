@@ -28,7 +28,7 @@ export default function App() {
       <Route path="/account" element={<AccountDetailPage />} />
       <Route path="/settings" element={<AccountSettingsPage />} />
       <Route path="/manage-document" element={<ManageDocs />} />
-      <Route path="/ViewDoc" element={<ViewDoc />} />
+      <Route path="/viewdoc" element={<ViewDoc />} />
       <Route path="/manage-document/:id" element={<ViewDoc />} />
       <Route path="/manage-document/add" element={<AddDoc />} />
     </Routes>

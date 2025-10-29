@@ -1,4 +1,3 @@
-// src/pages/ManageDocs.jsx
 import { useEffect, useState, useCallback } from "react";
 import { listDocs, deleteDoc, search as searchApi } from "../Services/api";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +6,6 @@ import Sidebar from "../components/Sidebar";
 const DUMMY_AUTHORS = ["UKM Seni Rupa", "Himpunan Mahasiswa SI", "UKM Robotika", "BEM Fakultas"];
 
 /* ---------- helpers: status mapping & colors ---------- */
-// Normalisasi label untuk tampilan, sumber tetap dari DB
 function prettyStatus(s) {
   if (!s) return "On Review";
   const k = String(s).toLowerCase().replace(/\s|_/g, "");
@@ -60,55 +58,43 @@ export default function ManageDocs() {
     rec.start();
   };
 
-  // LOAD LIST DOKUMEN (status langsung dari DB)
   const loadDocs = useCallback(async () => {
     setLoadingDocs(true);
     try {
       const payload = await listDocs({ limit: 500 });
-      // JANGAN menimpa status dari DB — hanya isi fallback author jika kosong
       const normalized = (payload.items || []).map((d, i) => ({
         ...d,
         author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
-        // status: d.status  ← sudah ada dari server; biarkan apa adanya
       }));
       setDocs(normalized);
       const map = {}; normalized.forEach(d => { map[String(d.id)] = d; });
       setDocMap(map);
-    } finally {
-      setLoadingDocs(false);
-    }
+    } finally { setLoadingDocs(false); }
   }, []);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
-  // Auto refresh ketika kembali dari ViewDoc (set flag di ViewDoc setelah submit)
+  // ⬇️ Auto-reload ketika ViewDoc selesai submit
   useEffect(() => {
     const maybeReload = () => {
       if (localStorage.getItem("needsReloadDocs") === "1") {
-        loadDocs();
         localStorage.removeItem("needsReloadDocs");
+        loadDocs();
       }
     };
-    // cek segera saat mount
-    maybeReload();
-
-    // refresh saat tab fokus kembali
+    // cek saat kembali ke tab / window fokus
     const onFocus = () => maybeReload();
+    const onVis = () => { if (document.visibilityState === "visible") maybeReload(); };
     window.addEventListener("focus", onFocus);
-
-    // refresh saat visibility berubah (mis. kembali dari halaman lain)
-    const onVis = () => {
-      if (document.visibilityState === "visible") maybeReload();
-    };
     document.addEventListener("visibilitychange", onVis);
-
+    // cek segera juga
+    maybeReload();
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVis);
     };
   }, [loadDocs]);
 
-  // SEMANTIC SEARCH
   const runSearch = useCallback(async (queryStr) => {
     const text = (queryStr ?? q).trim();
     if (!text) return clearSearch();

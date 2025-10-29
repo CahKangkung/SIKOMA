@@ -1,16 +1,8 @@
-// src/pages/ViewDoc.jsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getDoc, deleteDoc, upload, updateDocStatus } from "../Services/api";
 import Sidebar from "../components/Sidebar";
-import {
-  ArrowLeft,
-  Trash2,
-  Download,
-  CheckCircle2,
-  UploadCloud,
-  Cog,
-} from "lucide-react";
+import { ArrowLeft, Trash2, Download, CheckCircle2, UploadCloud, Cog } from "lucide-react";
 
 /* --- helpers --- */
 const canon = (s) => {
@@ -19,6 +11,12 @@ const canon = (s) => {
   if (k === "approved" || k === "approve") return "Approved";
   if (k === "reject" || k === "rejected") return "Reject";
   return "On Review";
+};
+
+// dropdown harus selalu punya value valid (tanpa "Uploaded")
+const nextActionFromStatus = (canonStatus) => {
+  if (canonStatus === "Uploaded") return "On Review";
+  return canonStatus || "On Review";
 };
 
 function Step({ icon, label, active }) {
@@ -33,11 +31,7 @@ function Step({ icon, label, active }) {
       >
         {icon}
       </div>
-      <div
-        className={`mt-3 text-lg font-semibold ${
-          active ? "text-indigo-700" : "text-gray-400"
-        }`}
-      >
+      <div className={`mt-3 text-lg font-semibold ${active ? "text-indigo-700" : "text-gray-400"}`}>
         {label}
       </div>
     </div>
@@ -61,20 +55,21 @@ export default function ViewDoc() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
+  // form state (tidak menulis ke DB sampai submit)
   const [actionStatus, setActionStatus] = useState(null);
   const [comment, setComment] = useState("");
   const [approvalFile, setApprovalFile] = useState(null);
 
   const apiBase = import.meta.env.VITE_API_BASE;
 
-  // ⬇️ Ambil data dari DB (status termasuk)
   const load = useCallback(async () => {
     setLoading(true);
     setErr("");
     try {
       const d = await getDoc(id);
       setDoc(d);
-      setActionStatus(canon(d?.status)); // status dropdown sesuai DB
+      const c = canon(d?.status);
+      setActionStatus(nextActionFromStatus(c)); // dropdown default dari DB, tapi valid
     } catch (e) {
       console.error(e);
       setErr(e?.message || "Gagal memuat dokumen");
@@ -87,7 +82,6 @@ export default function ViewDoc() {
     load();
   }, [load]);
 
-  // ⬇️ Hapus dokumen
   const onDelete = async () => {
     if (!confirm("Hapus dokumen ini?")) return;
     try {
@@ -110,42 +104,50 @@ export default function ViewDoc() {
     return 0; // Uploaded
   }, [doc]);
 
-  // ⬇️ Submit update status ke DB
+  // Submit: update ke DB, lalu refresh UI dari respons server
   const submitAction = async (e) => {
     e.preventDefault();
     if (!doc) return;
 
     try {
-      const status = canon(actionStatus);
+      const status = (actionStatus && canon(actionStatus)) || "On Review";
       const payload = { status };
 
-      if (status === "Approved") {
-        if (!approvalFile) { alert("Saat Approved, wajib unggah dokumen."); return; }
-        const fd = new FormData();
-        fd.append("file", approvalFile);
-        const up = await upload(fd);
-        payload.approvalFileId = up?.fileId || up?.id;
-      }
       if (status === "Reject") {
         payload.comment = (comment || "").trim();
       }
 
-      console.log("[ViewDoc] PATCH payload:", payload, "id:", (doc._id || doc.id));
+      if (status === "Approved") {
+        if (!approvalFile) {
+          alert("Saat Approved, wajib unggah dokumen pengganti.");
+          return;
+        }
+        const fd = new FormData();
+        fd.append("file", approvalFile);
+        const up = await upload(fd); // server mengembalikan fileId
+        payload.approvalFileId = up?.fileId || up?.id;
+      }
+
+      // log dev (optional)
+      // console.log("[ViewDoc] PATCH payload:", payload, "id:", (doc._id || doc.id));
 
       const updated = await updateDocStatus(doc._id || doc.id, payload);
 
-      console.log("[ViewDoc] PATCH response:", updated);
-
+      // segarkan tampilan berdasar data terbaru dari server
       setDoc(updated);
-      setActionStatus(canon(updated?.status));
+      setActionStatus(nextActionFromStatus(canon(updated?.status)));
       setComment("");
       setApprovalFile(null);
 
+      // refresh penuh agar pasti sinkron dengan DB (stepper, preview)
       await load();
+
+      // beri sinyal ke ManageDocs agar reload juga
       localStorage.setItem("needsReloadDocs", "1");
+
       alert("Status berhasil diperbarui.");
     } catch (e2) {
-      console.error("[ViewDoc] PATCH error:", e2);
+      console.error(e2);
       alert("Gagal menyimpan status.");
     }
   };
@@ -154,7 +156,7 @@ export default function ViewDoc() {
     <div className="min-h-screen bg-gray-50">
       <Sidebar activePage="Manage Document" />
       <div className="ml-64 min-h-screen">
-        {/* Header */}
+        {/* TOP BAR */}
         <header className="sticky top-0 z-30 border-b bg-white">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
             <h1 className="text-2xl font-bold text-[#23358B]">View Document</h1>
@@ -167,7 +169,7 @@ export default function ViewDoc() {
 
           {!loading && !err && doc && (
             <>
-              {/* Judul dan tombol delete */}
+              {/* Header row: back + title + delete */}
               <div className="mb-4 flex items-center justify-between">
                 <button
                   onClick={() => navigate(-1)}
@@ -188,34 +190,16 @@ export default function ViewDoc() {
                 </button>
               </div>
 
-              {/* Status saat ini */}
-              <div className="mb-4 text-sm font-semibold text-gray-600">
-                Current Status:{" "}
-                <span className="text-[#23358B]">{doc.status}</span>
-              </div>
-
               {/* Stepper */}
               <div className="rounded-2xl bg-indigo-50/40 p-6">
                 <div className="flex items-center justify-center gap-16">
-                  <Step
-                    icon={<UploadCloud className="h-8 w-8" />}
-                    label="Uploaded"
-                    active={activeStepIndex >= 0}
-                  />
-                  <Step
-                    icon={<Cog className="h-8 w-8" />}
-                    label="On Review"
-                    active={activeStepIndex >= 1}
-                  />
-                  <Step
-                    icon={<CheckCircle2 className="h-8 w-8" />}
-                    label="Approved"
-                    active={activeStepIndex >= 2}
-                  />
+                  <Step icon={<UploadCloud className="h-8 w-8" />} label="Uploaded" active={activeStepIndex >= 0} />
+                  <Step icon={<Cog className="h-8 w-8" />} label="On Review" active={activeStepIndex >= 1} />
+                  <Step icon={<CheckCircle2 className="h-8 w-8" />} label="Approved" active={activeStepIndex >= 2} />
                 </div>
               </div>
 
-              {/* Meta */}
+              {/* Meta kiri-kanan */}
               <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
                   <Meta label="Author" value={doc.author} />
@@ -227,7 +211,7 @@ export default function ViewDoc() {
                 </div>
               </div>
 
-              {/* Summary */}
+              {/* Summary full width */}
               <div className="mt-6">
                 <div className="font-semibold text-[#23358B]">Summary</div>
                 <p className="mt-2 leading-relaxed text-gray-700">
@@ -253,18 +237,11 @@ export default function ViewDoc() {
                         <Download className="h-4 w-4" />
                         Download
                       </a>
-                      <iframe
-                        title="PDF Preview"
-                        src={fileUrl}
-                        className="h-[540px] w-full rounded-md"
-                      />
+                      <iframe title="PDF Preview" src={fileUrl} className="h-[540px] w-full rounded-md" />
                     </div>
                   ) : (
                     <div className="text-gray-500">
-                      Preview tidak tersedia.{" "}
-                      {attach
-                        ? `(${attach.mime})`
-                        : "Tidak ada lampiran."}
+                      Preview tidak tersedia. {attach ? `(${attach.mime})` : "Tidak ada lampiran."}
                     </div>
                   )}
                 </div>
@@ -275,15 +252,15 @@ export default function ViewDoc() {
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div>
                     <div className="font-semibold text-[#23358B]">Set Status</div>
-                     <select
-                        value={actionStatus ?? "On Review"}
-                        onChange={(e) => {
-                          setActionStatus(e.target.value);
-                          setComment("");
-                          setApprovalFile(null);
-                        }}
-                        className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
-                      >
+                    <select
+                      value={actionStatus ?? "On Review"}
+                      onChange={(e) => {
+                        setActionStatus(e.target.value);
+                        setComment("");
+                        setApprovalFile(null);
+                      }}
+                      className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
+                    >
                       <option>On Review</option>
                       <option>Approved</option>
                       <option>Reject</option>
@@ -292,16 +269,12 @@ export default function ViewDoc() {
 
                   {actionStatus === "Approved" && (
                     <div>
-                      <div className="font-semibold text-[#23358B]">
-                        Upload Document
-                      </div>
+                      <div className="font-semibold text-[#23358B]">Upload Document</div>
                       <label className="mt-2 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/30 p-8 text-center hover:bg-indigo-50">
                         <input
                           type="file"
                           className="hidden"
-                          onChange={(e) =>
-                            setApprovalFile(e.target.files?.[0] || null)
-                          }
+                          onChange={(e) => setApprovalFile(e.target.files?.[0] || null)}
                         />
                         <div className="text-5xl">📥</div>
                         <div className="mt-1 text-sm text-gray-600">
@@ -319,9 +292,7 @@ export default function ViewDoc() {
 
                   {actionStatus === "Reject" && (
                     <div className="md:col-span-2">
-                      <div className="font-semibold text-[#23358B]">
-                        Add Comment
-                      </div>
+                      <div className="font-semibold text-[#23358B]">Add Comment</div>
                       <textarea
                         rows={4}
                         placeholder="Alasan penolakan"
