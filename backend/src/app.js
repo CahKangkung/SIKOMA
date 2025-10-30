@@ -2,15 +2,15 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
-import cookieParser from "cookieParser"; 
-import mongoose from mongoose;
+import cookieParser from "cookie-parser"; 
+import mongoose from 'mongoose';
 dotenv.config();
 
 import ingestRoutes from "./routes/ingest.routes.js";
 import searchRoutes from "./routes/search.routes.js";
 import docsRoutes from "./routes/docs.routes.js";
 import filesRoutes from "./routes/files.routes.js";
-import userRoutes from "./routes/userRoutes";
+import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 app.use(cors());
