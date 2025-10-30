@@ -15,10 +15,10 @@ const RECIPIENTS = [
 export default function AddDoc() {
   const [title, setTitle] = useState("");
   const [recipient, setRecipient] = useState("");
-  const [due, setDue] = useState(""); // YYYY-MM-DD
+  const [due, setDue] = useState(""); 
   const [file, setFile] = useState(null);
 
-  const [notes, setNotes] = useState("");     // preview summary (Generate with AI)
+  const [notes, setNotes] = useState(""); 
   const [loadingAI, setLoadingAI] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -35,7 +35,7 @@ export default function AddDoc() {
       setLoadingAI(true);
       const fd = new FormData();
       fd.append("file", file);
-      const data = await summarizePreview(fd); // { summary }
+      const data = await summarizePreview(fd); 
       setNotes(data.summary || "");
     } catch (e) {
       console.error(e);
@@ -47,6 +47,8 @@ export default function AddDoc() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return; 
+
     if (!title.trim()) return alert("Isi Document Title.");
     if (!file) return alert("Silakan unggah file.");
     if (!recipient) return alert("Pilih recipient.");
@@ -55,17 +57,16 @@ export default function AddDoc() {
     try {
       setSubmitting(true);
 
-      // tanggal upload (hari ini)
-      const uploadDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const uploadDate = new Date().toISOString().slice(0, 10);
 
       const fd = new FormData();
       fd.append("file", file);
       fd.append("subject", title.trim());
       fd.append("author", recipient);
-      fd.append("date", uploadDate);           // upload date
-      fd.append("dueDate", due);               // due date tersendiri
-      fd.append("status", "Uploaded");         // ← penting: status awal "Uploaded"
-      // notes opsional – kalau mau ikut dikirim:
+      fd.append("date", uploadDate);
+      fd.append("dueDate", due);
+      fd.append("status", "Uploaded");
+      fd.append("comment", "");
       if (notes?.trim()) fd.append("notes", notes.trim());
 
       await upload(fd);
@@ -102,7 +103,13 @@ export default function AddDoc() {
             <span className="text-lg font-semibold">Add New Document</span>
           </button>
 
-          <form onSubmit={onSubmit} className="space-y-6">
+          <form
+            onSubmit={onSubmit}
+            onKeyDown={(e) => {
+              if (submitting && e.key === "Enter") e.preventDefault();
+            }}
+            className="space-y-6"
+          >
             {/* Document Title */}
             <div>
               <label className="block text-sm font-semibold text-[#23358B]">
@@ -112,31 +119,8 @@ export default function AddDoc() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Mis. Proposal Pasar Seni"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-            </div>
-
-            {/* Notes + Generate with AI */}
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="block text-sm font-semibold text-[#23358B]">
-                  Notes
-                </label>
-                <button
-                  type="button"
-                  onClick={doSummarize}
-                  disabled={loadingAI || !file}
-                  className="rounded-lg border border-indigo-300 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
-                >
-                  {loadingAI ? "Generating…" : "Generate  with AI"}
-                </button>
-              </div>
-              <textarea
-                rows={6}
-                placeholder="Tambahkan ringkasan/notes (opsional)"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
+                disabled={submitting}
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
               />
             </div>
 
@@ -146,13 +130,16 @@ export default function AddDoc() {
                 Upload Document
               </label>
               <label
-                className="block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/40 p-10 text-center hover:bg-indigo-50"
+                className={`block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/40 p-10 text-center hover:bg-indigo-50 ${
+                  submitting ? "pointer-events-none opacity-60" : ""
+                }`}
               >
                 <input
                   type="file"
                   accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
                   className="hidden"
                   onChange={onPickFile}
+                  disabled={submitting}
                 />
                 <div className="text-6xl">🗂️</div>
                 <div className="mt-3 text-gray-600">
@@ -170,6 +157,31 @@ export default function AddDoc() {
               </label>
             </div>
 
+            {/* Notes + Generate with AI */}
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-[#23358B]">
+                  Summary
+                </label>
+                <button
+                  type="button"
+                  onClick={doSummarize}
+                  disabled={loadingAI || !file || submitting}
+                  className="rounded-lg border border-indigo-300 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                >
+                  {loadingAI ? "Generating…" : "Generate with AI"}
+                </button>
+              </div>
+              <textarea
+                rows={6}
+                placeholder="Tambahkan ringkasan/notes (opsional)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={submitting}
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
+              />
+            </div>
+
             {/* Recipient & Due Date */}
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
@@ -179,7 +191,8 @@ export default function AddDoc() {
                 <select
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
+                  disabled={submitting}
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
                 >
                   <option value="" disabled>
                     Please choose the recipient
@@ -200,7 +213,8 @@ export default function AddDoc() {
                   type="date"
                   value={due}
                   onChange={(e) => setDue(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300"
+                  disabled={submitting}
+                  className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -210,7 +224,12 @@ export default function AddDoc() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-xl bg-[#133962] px-8 py-3 text-white font-semibold hover:opacity-90 disabled:opacity-50"
+                aria-disabled={submitting}
+                className={`rounded-xl px-8 py-3 text-white font-semibold transition ${
+                  submitting
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-[#133962] hover:opacity-90"
+                }`}
               >
                 {submitting ? "Submitting…" : "Submit"}
               </button>

@@ -86,12 +86,7 @@ router.get("/docs/:id", async (req, res, next) => {
   }
 });
 
-/* =========================
-   UPDATE STATUS (APPROVE/REJECT/ON REVIEW)
-   PATCH /api/docs/:id/status
-   Body: { status, comment?, approvalFileId? }
-   ========================= */
-router.patch("/docs/:id/status", async (req, res, next) => {
+router.put("/docs/:id", async (req, res, next) => {
   try {
     const db = await getDb();
     const lcol = letters(db);
@@ -99,43 +94,28 @@ router.patch("/docs/:id/status", async (req, res, next) => {
     const id = req.params.id;
     const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
 
-    const { status, comment, approvalFileId } = req.body || {};
-    if (!status) return res.status(400).json({ error: "missing_status" });
+    const patch = req.body || {};
+    const $set = { updatedAt: new Date() };
 
-    // normalisasi status
-    const norm = String(status || "").toLowerCase().replace(/\s|_/g, "");
-    const toSave =
-      norm === "approved" || norm === "approve"
-        ? "Approved"
-        : norm === "reject" || norm === "rejected"
-        ? "Reject"
-        : "On Review";
-
-    const updateData = {
-      status: toSave,
-      updatedAt: new Date(),
-    };
-
-    if (comment) updateData.comment = comment;
-
-    if (approvalFileId) {
-      // Jika Approved + upload file baru → ganti attachments
-      updateData.attachments = [
-        {
-          fileId: approvalFileId,
-          mime: "application/pdf", // sesuaikan jika file bisa non-PDF
-        },
-      ];
+    if (patch.status) {
+      const norm = String(patch.status).toLowerCase().replace(/\s|_/g, "");
+      $set.status =
+        norm === "approved" || norm === "approve" ? "Approved" :
+        norm === "reject"   || norm === "rejected"? "Reject"   :
+        "On Review";
+    }
+    if (typeof patch.comment === "string") $set.comment = patch.comment;
+    if (patch.approvalFileId) {
+      $set.attachments = [{ fileId: patch.approvalFileId, mime: "application/pdf" }];
     }
 
-    // Kompatibel dengan driver v3/v4
     const result = await lcol.findOneAndUpdate(
       { _id },
-      { $set: updateData },
+      { $set },
       { returnDocument: "after", returnOriginal: false }
     );
-
-    const updated = result.value;
+    console.log(result)
+    const updated = result;
     if (!updated) return res.status(404).json({ error: "not_found" });
 
     res.json({
@@ -151,11 +131,60 @@ router.patch("/docs/:id/status", async (req, res, next) => {
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
     });
-  } catch (e) {
-    console.error("update status error:", e);
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
+
+/* =========================
+   UPDATE STATUS (APPROVE/REJECT/ON REVIEW)
+   PATCH /api/docs/:id/status
+   Body: { status, comment?, approvalFileId? }
+   ========================= */
+// router.patch("/docs/:id/status", async (req, res, next) => {
+//   try {
+//     const db = await getDb();
+//     const lcol = letters(db);
+
+//     const id = req.params.id;
+//     const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
+
+//     const { status, comment, approvalFileId } = req.body || {};
+//     if (!status) return res.status(400).json({ error: "missing_status" });
+
+//     const norm = String(status).toLowerCase().replace(/\s|_/g, "");
+//     const toSave =
+//       norm === "approved" || norm === "approve" ? "Approved" :
+//       norm === "reject"   || norm === "rejected"? "Reject"   :
+//       "On Review";
+
+//     const $set = { status: toSave, updatedAt: new Date() };
+//     if (comment) $set.comment = comment;
+//     if (approvalFileId) {
+//       $set.attachments = [{ fileId: approvalFileId, mime: "application/pdf" }];
+//     }
+
+//     const result = await lcol.findOneAndUpdate(
+//       { _id },
+//       { $set },
+//       { returnDocument: "after", returnOriginal: false }
+//     );
+//     const updated = result.value;
+//     if (!updated) return res.status(404).json({ error: "not_found" });
+
+//     res.json({
+//       _id: String(updated._id),
+//       subject: updated.subject,
+//       number: updated.number,
+//       date: updated.date,
+//       summary: updated.summary || "",
+//       status: updated.status,
+//       author: updated.author ?? null,
+//       recipient: updated.recipient ?? null,
+//       attachments: updated.attachments || [],
+//       createdAt: updated.createdAt,
+//       updatedAt: updated.updatedAt,
+//     });
+//   } catch (e) { next(e); }
+// });
 
 /* =========================
    HAPUS DOKUMEN
