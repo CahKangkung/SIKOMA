@@ -1,4 +1,4 @@
-// src/components/ForgotPasswordPage.jsx
+// src/pages/ForgotPasswordPage.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import wave from "../assets/background-forgotpass.png";
@@ -7,9 +7,26 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    // TODO: panggil API reset password di sini
+
+    // Simulasi database user yang terdaftar
+    const registeredEmails = ["rahmatdipo62@gmail.com", "elyanliliyan@gmail.com"];
+
+    // Validasi apakah email terdaftar
+    if (!registeredEmails.includes(email.trim().toLowerCase())) {
+      alert("Email tidak terdaftar di sistem kami.");
+      return;
+    }
+
+    // Simulasi pengiriman link reset
+    const resetLink = `${window.location.origin}/reset?token=${btoa(email)}`;
+    console.log("🔗 Reset link:", resetLink);
+
+    // Simulasi kirim email (API nyata bisa pakai nodemailer / SendGrid)
+    alert(`Link reset password telah dikirim ke ${email}.`);
+
+    // Redirect ke halaman sukses
     navigate("/forgot/success");
   };
 
@@ -43,13 +60,14 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 outline-none focus:ring-2 focus:ring-[#23358B]/30"
+            placeholder="Input your email"
           />
 
           <button
             type="submit"
             className="mt-6 w-full rounded-xl bg-[#133962] py-3 text-white font-semibold hover:opacity-90 transition"
           >
-            Continue
+            Send Reset Link
           </button>
 
           <div className="mt-4 text-center text-sm">
