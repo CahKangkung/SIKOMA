@@ -6,6 +6,7 @@ export const users = [
   { id: 3, name: "Lina", email: "lina@gmail.com", password: "123456" },
   { id: 4, name: "Budiman", email: "budiman@gmail.com", password: "123456" },
   { id: 5, name: "Tono", email: "tono@gmail.com", password: "123456" },
+  { id: 5, name: "Dina", email: "dina@gmail.com", password: "123456" },
 ];
 
 export const organizations = [

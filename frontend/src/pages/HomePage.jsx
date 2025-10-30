@@ -1,20 +1,25 @@
+// src/pages/HomePage.jsx
 import React, { useEffect, useRef, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate } from "react-router-dom";
-import { UserRound, Building2, PlusSquare, User as UserIcon, IdCard } from "lucide-react";
+import { UserRound, Building2, PlusSquare, User as UserIcon, IdCard, LogOut } from "lucide-react";
 
 export default function HomePage() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  // fungsi logout → arahkan ke halaman login
+  // Ambil user aktif dari localStorage
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  // Logout
   const handleLogout = () => {
     setMenuOpen(false);
+    localStorage.removeItem("currentUser");
     navigate("/login");
   };
 
-  // Tutup dropdown kalau klik di luar atau tekan ESC
+  // Tutup dropdown
   useEffect(() => {
     const onClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
@@ -31,12 +36,10 @@ export default function HomePage() {
   return (
     <section className="min-h-screen flex flex-col justify-between bg-white">
       <header className="flex justify-between items-center px-10 py-6 border-b">
-        {/* Kiri: logo */}
         <div className="flex items-center gap-2">
           <img src={logo} alt="SIKOMA" className="h-8 w-auto md:h-10" />
         </div>
 
-        {/* Kanan: User menu */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
@@ -44,7 +47,7 @@ export default function HomePage() {
             aria-expanded={menuOpen}
             className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
           >
-            <span>User</span>
+            <span>{currentUser ? currentUser.name : "User"}</span>
             <UserIcon className="w-6 h-6" />
           </button>
 
@@ -62,7 +65,7 @@ export default function HomePage() {
                 className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
               >
                 <IdCard className="h-5 w-5 text-white/80" />
-                <span>Detail Account</span>
+                <span>Account Detail</span>
               </button>
               <div className="h-px bg-white/10" />
               <button
@@ -80,14 +83,15 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className="flex flex-col items-center justify-center text-center px-6 py-10">
-        <h1 className="text-4xl font-extrabold text-neutral-800">Welcome, User!</h1>
+        <h1 className="text-4xl font-extrabold text-neutral-800">
+          Welcome, {currentUser ? currentUser.name : "User"}!
+        </h1>
         <p className="mt-2 text-neutral-600">
-          You're not part of any organization yet. Let's get started
+          Manage your organizations easily. Choose an action below.
         </p>
 
         {/* Cards */}
-         <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
-          {/* Join */}
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
           <button
             onClick={() => navigate("/home/join")}
             className="rounded-xl border p-8 hover:shadow-lg transition"
@@ -98,7 +102,6 @@ export default function HomePage() {
             </p>
           </button>
 
-          {/* Create */}
           <button
             onClick={() => navigate("/home/new")}
             className="rounded-xl border p-8 hover:shadow-lg transition"
@@ -109,20 +112,18 @@ export default function HomePage() {
             </p>
           </button>
 
-          {/* Current */}
           <button
             onClick={() => navigate("/home/current")}
             className="rounded-xl border p-8 hover:shadow-lg transition"
           >
             <UserRound className="w-10 h-10 mx-auto text-orange-500" />
             <p className="mt-4 font-semibold text-neutral-800">
-              Current Organization
+              Current Organizations
             </p>
           </button>
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="text-center py-6 text-sm text-neutral-500 border-t">
         © 2025 SIKOMA. Simplify, track and connect with SIKOMA
       </footer>
