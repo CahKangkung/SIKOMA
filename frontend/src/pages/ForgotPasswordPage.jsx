@@ -1,6 +1,6 @@
-// src/pages/ForgotPasswordPage.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { users } from "../data/DummyData"; // ✅ import from DummyData.js
 import wave from "../assets/background-forgotpass.png";
 
 export default function ForgotPasswordPage() {
@@ -10,29 +10,31 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    // Simulasi database user yang terdaftar
-    const registeredEmails = ["rahmatdipo62@gmail.com", "elyanliliyan@gmail.com"];
+    // ✅ Check registered users from DummyData
+    const isRegistered = users.some(
+      (user) => user.email.trim().toLowerCase() === email.trim().toLowerCase()
+    );
 
-    // Validasi apakah email terdaftar
-    if (!registeredEmails.includes(email.trim().toLowerCase())) {
-      alert("Email tidak terdaftar di sistem kami.");
+    // ❌ If not found
+    if (!isRegistered) {
+      alert("This email is not registered in our system.");
       return;
     }
 
-    // Simulasi pengiriman link reset
+    // ✅ Simulate reset link
     const resetLink = `${window.location.origin}/reset?token=${btoa(email)}`;
     console.log("🔗 Reset link:", resetLink);
 
-    // Simulasi kirim email (API nyata bisa pakai nodemailer / SendGrid)
-    alert(`Link reset password telah dikirim ke ${email}.`);
+    // ✅ Simulate email sending
+    alert(`A password reset link has been sent to ${email}.\nCheck the console for the simulation link.`);
 
-    // Redirect ke halaman sukses
+    // ✅ Redirect to success page
     navigate("/forgot/success");
   };
 
   return (
     <section className="relative min-h-screen flex items-center justify-center bg-white overflow-hidden isolate">
-      {/* BACKGROUND WAVE FULL */}
+      {/* BACKGROUND WAVE */}
       <img
         src={wave}
         alt=""
@@ -43,11 +45,11 @@ export default function ForgotPasswordPage() {
       {/* CARD */}
       <div className="w-full max-w-lg bg-white/95 backdrop-blur-md rounded-2xl shadow-xl ring-1 ring-black/10 p-8 mx-4">
         <h1 className="text-3xl font-extrabold text-neutral-900 text-center">
-          Forgot password
+          Forgot Password
         </h1>
         <p className="mt-2 text-neutral-700 text-center leading-relaxed">
-          Enter your email for the verification process, we will send a new
-          password to your email.
+          Enter your email for the verification process. We will send a reset
+          password link to your email.
         </p>
 
         <form onSubmit={onSubmit} className="mt-6">
@@ -60,7 +62,7 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 outline-none focus:ring-2 focus:ring-[#23358B]/30"
-            placeholder="Input your email"
+            placeholder="Enter your email"
           />
 
           <button
@@ -72,7 +74,7 @@ export default function ForgotPasswordPage() {
 
           <div className="mt-4 text-center text-sm">
             <Link to="/login" className="text-[#23358B] hover:underline">
-              Back to login
+              Back to Login
             </Link>
           </div>
         </form>
