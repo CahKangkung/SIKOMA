@@ -30,8 +30,8 @@ export default function ManageDocs() {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
-  const [threshold, setThreshold] = useState(0.75);
-  const [topK, setTopK] = useState(8);
+  const [threshold] = useState(0.75);
+  const [topK] = useState(8);
 
   const navigate = useNavigate();
 
@@ -62,9 +62,9 @@ export default function ManageDocs() {
     setLoadingDocs(true);
     try {
       const payload = await listDocs({ limit: 500 });
-      const normalized = (payload.items || []).map((d, i) => ({
+      const normalized = (payload.items || []).map((d) => ({
         ...d,
-        author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
+        // author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
       }));
       setDocs(normalized);
       const map = {}; normalized.forEach(d => { map[String(d.id)] = d; });
@@ -178,22 +178,6 @@ export default function ManageDocs() {
 
           {/* Params (opsional) */}
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-            <div className="flex items-center gap-2">
-              <span>topK</span>
-              <input
-                type="number" min="1" max="30" value={topK}
-                onChange={(e) => setTopK(Number(e.target.value) || 8)}
-                className="w-20 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span>threshold</span>
-              <input
-                type="number" step="0.01" min="0" max="1" value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value) || 0.75)}
-                className="w-24 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-            </div>
             {showingSearch && <span>hasil: {hits.length}{loadingSearch ? " (loading…)" : ""}</span>}
           </div>
 

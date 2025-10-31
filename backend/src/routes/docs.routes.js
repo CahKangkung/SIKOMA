@@ -40,6 +40,7 @@ router.get("/docs", async (req, res, next) => {
         subject: d.subject,
         number: d.number,
         date: d.date,
+        due: d.due,
         status: d.status, // ⬅️ perbaikan: sebelumnya salah referensi doc.status
         author: d.author ?? null,
         recipient: d.recipient ?? null,
@@ -73,6 +74,7 @@ router.get("/docs/:id", async (req, res, next) => {
       subject: doc.subject,
       number: doc.number,
       date: doc.date,
+      due: doc.due,
       summary: doc.summary || "",
       status: doc.status,
       author: doc.author ?? null,
@@ -89,10 +91,14 @@ router.get("/docs/:id", async (req, res, next) => {
 router.put("/docs/:id", async (req, res, next) => {
   try {
     const db = await getDb();
+    const bucket = await getBucket();  
     const lcol = letters(db);
 
     const id = req.params.id;
     const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
+
+    const current = await lcol.findOne({ _id });
+    if (!current) return res.status(404).json({ error: "not_found" });
 
     const patch = req.body || {};
     const $set = { updatedAt: new Date() };
@@ -106,16 +112,36 @@ router.put("/docs/:id", async (req, res, next) => {
     }
     if (typeof patch.comment === "string") $set.comment = patch.comment;
     if (patch.approvalFileId) {
-      $set.attachments = [{ fileId: patch.approvalFileId, mime: "application/pdf" }];
+      const old = (current.attachments || [])[0];
+      if (old?.fileId) {
+        try {
+          const oldFid = ObjectId.isValid(old.fileId) ? new ObjectId(old.fileId) : old.fileId;
+          await bucket.delete(oldFid);
+        } catch (e) {
+          // jangan gagalkan seluruh request kalau gagal hapus file lama
+          console.warn("delete old GridFS file warn:", e?.message || e);
+        }
+      }
+      const newFid = ObjectId.isValid(patch.approvalFileId)
+        ? new ObjectId(patch.approvalFileId)
+        : patch.approvalFileId;
+
+      $set.attachments = [
+        {
+          fileId: newFid,
+          mime: patch.approvalMime || "application/pdf",
+          name: patch.approvalFileName || old?.name || "approved.pdf",
+        },
+      ];
     }
 
     const result = await lcol.findOneAndUpdate(
       { _id },
       { $set },
-      { returnDocument: "after", returnOriginal: false }
+      { returnDocument: "after" }
     );
     console.log(result)
-    const updated = result;
+    const updated = result?.value || result; // antisipasi driver lama
     if (!updated) return res.status(404).json({ error: "not_found" });
 
     res.json({

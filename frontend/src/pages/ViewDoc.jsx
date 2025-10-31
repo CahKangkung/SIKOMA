@@ -271,7 +271,7 @@ export default function ViewDoc() {
                 </div>
                 <div>
                   <Meta label="Upload Date" value={doc.date} alignRight />
-                  <Meta label="Due Date" value={doc.dueDate} alignRight />
+                  <Meta label="Due Date" value={doc.due} alignRight />
                 </div>
               </div>
 
@@ -390,7 +390,7 @@ export default function ViewDoc() {
                       saving ? "bg-gray-400 cursor-not-allowed" : "bg-[#133962] hover:opacity-90"
                     }`}
                   >
-                    {saving ? "Processing…" : "Submit"}
+                    {saving ? "Submitting…" : "Submit"}
                   </button>
                 </div>
               </form>
