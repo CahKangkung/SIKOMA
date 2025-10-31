@@ -1,43 +1,38 @@
 const express = require("express");
 const {
-    register, 
-    login, 
-    logout,
-    getMe,
-    googleLogin,
-    googleCallback,
-    forgotPassword,
-    resetPassword,
-    updateProfile,
-    deleteAccount
+  register,
+  login,
+  logout,
+  getMe,
+  googleLogin,
+  googleCallback,
+  forgotPassword,
+  resetPassword,
+  updateProfile,
+  deleteAccount,
 } = require("../controllers/userController");
-const {verifyToken} = require("../middlewares/authMiddleware");
+const { verifyToken } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// Route handles (endpoints) for authentification
+// Auth routes
 router.post("/register", register);
-
 router.post("/login", login);
-
 router.post("/logout", logout);
 
-// Protected route
+// User info
 router.get("/me", verifyToken, getMe);
 
-// --- New Google OAuth Routes (Manual) ---
+// Google OAuth
 router.get("/google", googleLogin);
 router.get("/google/callback", googleCallback);
 
-// forgot password 
+// Password recovery
 router.post("/forgot-password", forgotPassword);
-
-// reset password 
 router.post("/reset-password/:token", resetPassword);
-module.exports = router;
 
-// update user profile (protected)
+// Profile management (protected)
 router.put("/update", verifyToken, updateProfile);
-
-// delete user account (protected)
 router.delete("/delete", verifyToken, deleteAccount);
+
+module.exports = router;
