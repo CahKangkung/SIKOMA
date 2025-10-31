@@ -17,6 +17,8 @@ import AddDoc from './pages/AddDoc.jsx';
 import CurrentOrganizationsPage from "./pages/CurrentOrganizationPage.jsx";
 import CreateOrganizationPage from "./pages/CreateOrganizationPage.jsx";
 import JoinOrganizationPage from "./pages/JoinOrganizationPage.jsx";
+import OrganizationPage from "./pages/OrganizationPage.jsx";
+import SettingOrganizationPage from "./pages/SettingOrganizationPage.jsx";
 
 export default function App() {
   return (
@@ -38,6 +40,8 @@ export default function App() {
       <Route path="/viewdoc" element={<ViewDoc />} />
       <Route path="/manage-document/:id" element={<ViewDoc />} />
       <Route path="/manage-document/add" element={<AddDoc />} />
+      <Route path="/organization" element={<OrganizationPage />} />
+      <Route path="/organization/settings" element={<SettingOrganizationPage />} />
     </Routes>
   );
 }

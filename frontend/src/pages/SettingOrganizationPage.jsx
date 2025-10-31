@@ -1,3 +1,4 @@
+// src/pages/SettingOrganizationPage.jsx
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
