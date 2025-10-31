@@ -1,166 +1,132 @@
-import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
-import { ArrowLeft } from "lucide-react";
-import { organizations, userCurrentOrganizations } from "../data/DummyData";
+// src/pages/HomePage.jsx
+import React, { useEffect, useRef, useState } from "react";
+import logo from "../assets/logo.png";
+import { useNavigate } from "react-router-dom";
+import { UserRound, Building2, PlusSquare, User as UserIcon, IdCard, LogOut } from "lucide-react";
 
-export default function SettingOrganizationPage() {
+export default function HomePage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const orgData = location.state?.orgDetail;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
-  const [name, setName] = useState(orgData?.name || "");
-  const [description, setDescription] = useState(orgData?.description || "");
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmText, setConfirmText] = useState("");
+  // Ambil user aktif dari localStorage
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    // Simulasi update organisasi di dummy data
-    const orgIndex = organizations.findIndex((o) => o.id === orgData.id);
-    if (orgIndex !== -1) {
-      organizations[orgIndex].name = name;
-      organizations[orgIndex].description = description;
-    }
-
-    alert(`✅ Organization "${name}" updated successfully!`);
-    navigate("/organization");
+  // Logout
+  const handleLogout = () => {
+    setMenuOpen(false);
+    localStorage.removeItem("currentUser");
+    navigate("/login");
   };
 
-  const handleDelete = () => {
-    if (confirmText.toLowerCase() === "confirm") {
-      // 🔹 Hapus dari organizations
-      const orgIndex = organizations.findIndex((o) => o.id === orgData.id);
-      if (orgIndex !== -1) organizations.splice(orgIndex, 1);
-
-      // 🔹 Hapus juga dari userCurrentOrganizations
-      userCurrentOrganizations.forEach((user) => {
-        user.organizations = user.organizations.filter(
-          (org) => org.id !== orgData.id
-        );
-      });
-
-      alert(`❌ Organization "${name}" deleted successfully.`);
-      navigate("/home"); // Arahkan ke HomePage.jsx
-    } else {
-      alert("Please type 'confirm' to proceed with deletion.");
-    }
-  };
+  // Tutup dropdown
+  useEffect(() => {
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC]">
-      {/* Sidebar */}
-      <Sidebar />
+    <section className="min-h-screen flex flex-col justify-between bg-white">
+      <header className="flex justify-between items-center px-10 py-6 border-b">
+        <div className="flex items-center gap-2">
+          <img src={logo} alt="SIKOMA" className="h-8 w-auto md:h-10" />
+        </div>
 
-      {/* Main Content */}
-      <div className="flex-1 ml-64 flex flex-col">
-        <Header title="Organization" />
-
-        <main className="p-10 flex-1">
-          {/* Back Button */}
+        <div className="relative" ref={menuRef}>
           <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-[#23358B] font-medium mb-6 hover:underline"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
           >
-            <ArrowLeft size={18} />
-            Settings
+            <span>{currentUser ? currentUser.name : "User"}</span>
+            <UserIcon className="w-6 h-6" />
           </button>
 
-          {/* Form Section */}
-          <div>
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Organization Name */}
-              <div>
-                <label className="block text-base font-semibold text-[#23358B] mb-2">
-                  Organization Name
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter organization name"
-                  className="bg-white w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#23358B] outline-none text-gray-800 transition-all duration-200"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-
-              {/* Organization Description */}
-              <div>
-                <label className="block text-base font-semibold text-[#23358B] mb-2">
-                  Organization Description
-                </label>
-                <textarea
-                  rows={5}
-                  placeholder="Write a short description about your organization..."
-                  className="bg-white w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#23358B] outline-none text-gray-800 resize-none transition-all duration-200"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
-
-              {/* Buttons */}
-              <div className="flex justify-end gap-4 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(true)}
-                  className="px-6 py-2 rounded-md bg-[#FF5C5C] text-white font-semibold shadow-sm hover:shadow-md hover:opacity-90 transition-all duration-200"
-                >
-                  Delete
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 rounded-md bg-[#133962] text-white font-semibold shadow-sm hover:shadow-md hover:opacity-90 transition-all duration-200"
-                >
-                  Submit
-                </button>
-              </div>
-            </form>
-          </div>
-        </main>
-      </div>
-
-      {/* Delete Confirmation Popup */}
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-xl shadow-xl p-8 w-[90%] max-w-md animate-scale-in">
-            <h2 className="text-2xl font-bold text-[#23358B] text-center mb-2">
-              Delete Organization
-            </h2>
-            <p className="text-center text-gray-600 text-sm mb-4">
-              To permanently delete your organization please type{" "}
-              <strong>"confirm"</strong>
-              <br />
-              <span className="text-red-600 font-semibold">
-                Warning: This action is permanent.
-              </span>
-            </p>
-
-            <input
-              type="text"
-              placeholder="confirm"
-              className="w-full border rounded-md px-3 py-2 mb-6 focus:ring-2 focus:ring-red-500 outline-none transition-all duration-200"
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-            />
-
-            <div className="flex justify-end gap-4">
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-neutral-900 text-white shadow-2xl ring-1 ring-black/10 z-50"
+            >
               <button
-                onClick={() => setShowConfirm(false)}
-                className="px-5 py-2 rounded-md bg-gray-300 text-gray-700 font-semibold hover:bg-gray-400 transition-all duration-200"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/account");
+                }}
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
               >
-                Cancel
+                <IdCard className="h-5 w-5 text-white/80" />
+                <span>Account Detail</span>
               </button>
+              <div className="h-px bg-white/10" />
               <button
-                onClick={handleDelete}
-                className="px-5 py-2 rounded-md bg-red-600 text-white font-semibold hover:opacity-90 hover:shadow-md transition-all duration-200"
+                role="menuitem"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800 text-red-300"
               >
-                Delete
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
               </button>
             </div>
-          </div>
+          )}
         </div>
-      )}
-    </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex flex-col items-center justify-center text-center px-6 py-10">
+        <h1 className="text-4xl font-extrabold text-neutral-800">
+          Welcome, {currentUser ? currentUser.name : "User"}!
+        </h1>
+        <p className="mt-2 text-neutral-600">
+          Manage your organizations easily. Choose an action below.
+        </p>
+
+        {/* Cards */}
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <button
+            onClick={() => navigate("/home/join")}
+            className="rounded-xl border p-8 hover:shadow-lg transition"
+          >
+            <Building2 className="w-10 h-10 mx-auto text-[#5A6BF5]" />
+            <p className="mt-4 font-semibold text-neutral-800">
+              Join Existing Organization
+            </p>
+          </button>
+
+          <button
+            onClick={() => navigate("/home/new")}
+            className="rounded-xl border p-8 hover:shadow-lg transition"
+          >
+            <PlusSquare className="w-10 h-10 mx-auto text-green-600" />
+            <p className="mt-4 font-semibold text-neutral-800">
+              Create New Organization
+            </p>
+          </button>
+
+          <button
+            onClick={() => navigate("/home/current")}
+            className="rounded-xl border p-8 hover:shadow-lg transition"
+          >
+            <UserRound className="w-10 h-10 mx-auto text-orange-500" />
+            <p className="mt-4 font-semibold text-neutral-800">
+              Current Organizations
+            </p>
+          </button>
+        </div>
+      </main>
+
+      <footer className="text-center py-6 text-sm text-neutral-500 border-t">
+        © 2025 SIKOMA. Simplify, track and connect with SIKOMA
+      </footer>
+    </section>
   );
 }
