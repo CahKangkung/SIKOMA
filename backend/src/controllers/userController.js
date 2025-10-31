@@ -188,7 +188,7 @@ const forgotPassword = async (req, res) => {
       from: `"Si KOMA" <${process.env.EMAIL_USER}`,
       to: user.email,
       subject: "Password Reset - Si KOMA", 
-      text: `Hi ${user.username || "User"}, \n\nYou requested a password reset. \nPlease click the link below to reset your password (valid for 1 hour:\n\n${resetLink}\n\nIf you didn't request this, you can ignore this email. \n\nBest, \n Si KOMA Team)`,
+      text: `Hi ${user.username || "User"}, \n\nYou requested a password reset. \nPlease click the link below to reset your password (valid for 1 hour:\n\n${resetLink}\n\nIf you didn't request this, you can ignore this email. \n\nBest, \nSi KOMA Team)`,
     };
 
     // send email 
@@ -254,6 +254,8 @@ const updateProfile = async (req, res) => {
     }
 
     await user.save();
+
+    // update user data 
     res.status(200).json({
       message: "Profile updated successfully",
       user: {
