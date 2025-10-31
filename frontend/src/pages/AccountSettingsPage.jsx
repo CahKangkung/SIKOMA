@@ -1,48 +1,81 @@
-// src/components/SettingsPage.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, User as UserIcon, Eye, X } from "lucide-react";
+import { getCurrentUser, updateUser, deleteUser } from "../Services/api";
 
 export default function AccountSettingsPage() {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    username: "Unit Kegiatan Mahasiswa Kaligrafi",
-    email: "Ukaligrafi@gmail.com",
-    password: "Ukali.j4ya123",
-  });
-
-  // show-on-press untuk password
+  const [form, setForm] = useState({ username: "", email: "", password: "" });
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
-  // modal state
   const [openDelete, setOpenDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+
+  // Ambil data user saat halaman dibuka
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await getCurrentUser();
+        setForm({
+          username: res.data.user.username || "",
+          email: res.data.user.email || "",
+          password: "", // password tidak dikembalikan dari server
+        });
+      } catch (err) {
+        console.error(err);
+        setMessage("Failed to load user data. Please login again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const onSave = (e) => {
+  // ✅ Update ke database
+  const onSave = async (e) => {
     e.preventDefault();
-    // TODO: panggil API update profile
-    navigate("/dashboard");
+    try {
+      const res = await updateUser(form);
+      setMessage("✅ Profile updated successfully!");
+      setTimeout(() => navigate("/account"), 1500);
+    } catch (err) {
+      console.error(err);
+      setMessage(err.response?.data?.message || "Failed to update profile");
+    }
+  };
+
+  // ✅ Delete account dari database
+  const onDeleteConfirm = async () => {
+    try {
+      await deleteUser();
+      setMessage("🗑️ Account deleted successfully");
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      console.error(err);
+      setMessage("Failed to delete account");
+    }
   };
 
   const onLogout = () => navigate("/login");
 
-  const onDeleteConfirm = () => {
-    // TODO: panggil API delete account
-    navigate("/login");
-  };
-
-  // ESC to close modal
+  // ESC untuk tutup modal
   useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") setOpenDelete(false);
-    };
+    const onKey = (e) => e.key === "Escape" && setOpenDelete(false);
     if (openDelete) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [openDelete]);
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex justify-center items-center text-[#23358B]">
+        Loading user data...
+      </div>
+    );
 
   return (
     <section className="min-h-screen bg-white flex flex-col">
@@ -84,7 +117,7 @@ export default function AccountSettingsPage() {
             className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 outline-none focus:ring-2 focus:ring-[#23358B]/30"
           />
 
-          {/* Password (hold to reveal) */}
+          {/* Password */}
           <label className="block mt-6 text-[#23358B] font-semibold">Password</label>
           <div className="relative">
             <input
@@ -92,6 +125,7 @@ export default function AccountSettingsPage() {
               name="password"
               value={form.password}
               onChange={handleChange}
+              placeholder="Leave blank to keep current password"
               className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-[#23358B]/30"
             />
             <button
@@ -102,7 +136,6 @@ export default function AccountSettingsPage() {
               onTouchStart={() => setShowPassword(true)}
               onTouchEnd={() => setShowPassword(false)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-[#23358B]"
-              aria-label="Hold to show password"
             >
               <Eye className="h-5 w-5" />
             </button>
@@ -136,34 +169,29 @@ export default function AccountSettingsPage() {
               Logout
             </button>
           </div>
+
+          {/* Status message */}
+          {message && (
+            <p className="mt-4 text-center text-sm text-[#23358B]">{message}</p>
+          )}
         </form>
       </main>
 
       {/* DELETE MODAL */}
       {openDelete && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
           {/* backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setOpenDelete(false)}
-          />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setOpenDelete(false)} />
           {/* dialog */}
           <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-8 shadow-2xl ring-1 ring-black/10 mx-4">
             <button
               onClick={() => setOpenDelete(false)}
               className="absolute right-3 top-3 text-neutral-500 hover:text-neutral-700"
-              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <h2 className="text-3xl font-extrabold text-[#23358B] text-center">
-              Delete Account
-            </h2>
+            <h2 className="text-3xl font-extrabold text-[#23358B] text-center">Delete Account</h2>
             <p className="mt-3 text-center text-neutral-700">
               To permanently delete your account please type “<b>confirm</b>”
               <br />

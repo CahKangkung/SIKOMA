@@ -1,9 +1,27 @@
-import React from "react";
+import React, {useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, User } from "lucide-react";
+import { getCurrentUser } from "../Services/api";
 
 export default function AccountDetailPage() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await getCurrentUser();
+        setUser(res.data.user);
+      } catch (error) {
+        console.error(err);
+        setError("Failed to fetch user data. Please log in again");
+      } finally {
+        setLoading(false);
+      }
+    };
+  })
 
   return (
     <section className="min-h-screen bg-white flex flex-col">
