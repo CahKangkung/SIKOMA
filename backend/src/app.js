@@ -47,7 +47,7 @@ const MONGO_URI_USER = process.env.MONGODB_URI_USER; // untuk user model
 const MONGO_URI_LETTERS = process.env.MONGODB_URI; // untuk letter chunks
 const DB_NAME = process.env.DB_NAME || "letter-chunks"
 
-const connectDBB = async () => {
+const connectDB = async () => {
     try {
         // connect mongoose (untuk autentikasi & user.js)
         await mongoose.connect(MONGO_URI_USER);
@@ -68,7 +68,7 @@ const connectDBB = async () => {
     }
 };
 
-connectDBB();
+connectDB();
 
 app.use("/api/auth", userRoutes);
 

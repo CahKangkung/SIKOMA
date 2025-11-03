@@ -19,8 +19,8 @@ export default function AccountSettingsPage() {
       try {
         const res = await getCurrentUser();
         setForm({
-          username: res.data.user.username || "",
-          email: res.data.user.email || "",
+          username: res.user.username || "",
+          email: res.user.email || "",
           password: "", // password tidak dikembalikan dari server
         });
       } catch (err) {
