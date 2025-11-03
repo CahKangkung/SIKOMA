@@ -4,18 +4,27 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, User } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
+import { users, organizations } from "../data/DummyData";
 
 export default function AccountDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const fromOrg = location.state?.fromOrg ?? true; // default: tampil dengan sidebar
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser")) || {
-    name: "Unit Kegiatan Mahasiswa Kaligrafi",
-    email: "Ukaligrafi@gmail.com",
-    password: "Ukali.j4ya123",
-    joinDate: "16 June 2024",
+ // Ambil user aktif dari localStorage
+  const storedUser = JSON.parse(localStorage.getItem("currentUser"));
+  const currentUser = users.find((u) => u.id === storedUser?.id) || users[0];
+
+  // Cari tanggal join user dari salah satu organisasi
+  const findJoinDate = () => {
+    for (const org of organizations) {
+      const member = org.members.find((m) => m.id === currentUser.id);
+      if (member && member.joinDate) return member.joinDate;
+    }
+    return "Not Joined";
   };
+
+  const joinDate = findJoinDate();
 
   const content = (
     <main className="flex flex-col justify-center px-10 md:px-32 py-12">
@@ -38,7 +47,15 @@ export default function AccountDetailPage() {
 
           <div>
             <h3 className="text-[#23358B] font-semibold">Join Date</h3>
-            <p className="text-neutral-800 mt-1">{currentUser.joinDate}</p>
+            <p className="text-neutral-800 mt-1">
+              {joinDate !== "Not Joined"
+                ? new Date(joinDate).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "Not Joined"}
+            </p>
           </div>
         </div>
 
