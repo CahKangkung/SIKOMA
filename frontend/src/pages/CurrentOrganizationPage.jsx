@@ -1,3 +1,4 @@
+// src/pages/CurrentOrganizationPage.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Search, ChevronLeft, User as UserIcon } from "lucide-react";
@@ -12,24 +13,28 @@ export default function CurrentOrganizationsPage() {
 
   // Load data dari DummyData dan localStorage
   useEffect(() => {
-    const created = organizations
-      .filter((org) => org.authorId === currentUser?.id)
-      .map((org) => ({ ...org, status: "created" }));
+  // Ambil user dari localStorage (statis, tidak dipantau oleh dependency)
+  const user = JSON.parse(localStorage.getItem("currentUser"));
+  if (!user) return;
 
-    const joined =
-      JSON.parse(localStorage.getItem("joinedOrganizations"))?.map((org) => ({
-        ...org,
-        status: "joined",
-      })) || [];
+  const created = organizations
+    .filter((org) => org.authorId === user.id)
+    .map((org) => ({ ...org, status: "created" }));
 
-    const pending =
-      JSON.parse(localStorage.getItem("pendingRequests"))?.map((org) => ({
-        ...org,
-        status: "pending",
-      })) || [];
+  const joined =
+    JSON.parse(localStorage.getItem("joinedOrganizations"))?.map((org) => ({
+      ...org,
+      status: "joined",
+    })) || [];
 
-    setOrgList([...created, ...joined, ...pending]);
-  }, [currentUser]);
+  const pending =
+    JSON.parse(localStorage.getItem("pendingRequests"))?.map((org) => ({
+      ...org,
+      status: "pending",
+    })) || [];
+
+  setOrgList([...created, ...joined, ...pending]);
+}, []);
 
   // Filter hasil berdasarkan dropdown dan pencarian
   const filtered = orgList.filter((org) => {
@@ -225,7 +230,7 @@ export default function CurrentOrganizationsPage() {
                   {org.status !== "pending" && (
                     <button
                       onClick={() =>
-                        navigate("/organization", {
+                        navigate("/dashboard", {
                           state: { organization: org },
                         })
                       }
