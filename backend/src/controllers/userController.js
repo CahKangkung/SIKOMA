@@ -5,7 +5,7 @@ const axios = require("axios");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
-// ======================= REGISTER =======================
+// register
 const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -31,7 +31,7 @@ const register = async (req, res) => {
   }
 };
 
-// ======================= LOGIN =======================
+// login
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -67,13 +67,13 @@ const login = async (req, res) => {
   }
 };
 
-// ======================= LOGOUT =======================
+// logout
 const logout = (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ message: "Logged out successfully" });
 };
 
-// ======================= GET CURRENT USER =======================
+// get current user 
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -86,7 +86,7 @@ const getMe = async (req, res) => {
   }
 };
 
-// ======================= GOOGLE LOGIN =======================
+// google login
 const googleLogin = (req, res) => {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
   const options = {
@@ -153,7 +153,7 @@ const googleCallback = async (req, res) => {
   }
 };
 
-// ======================= FORGOT PASSWORD =======================
+// forgot password 
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -194,7 +194,7 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// ======================= RESET PASSWORD =======================
+// reset password
 const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -222,7 +222,7 @@ const resetPassword = async (req, res) => {
   }
 };
 
-// ======================= UPDATE PROFILE =======================
+// update profile
 const updateProfile = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -254,7 +254,7 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// ======================= DELETE ACCOUNT =======================
+// delete account 
 const deleteAccount = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.user.id);

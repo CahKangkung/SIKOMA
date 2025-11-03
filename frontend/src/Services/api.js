@@ -6,9 +6,7 @@ const api = axios.create({
   withCredentials: true, // penting: agar cookie JWT dikirim otomatis
 });
 
-/* ======================================================
-   📂 DOKUMEN API
-   ====================================================== */
+// document API 
 
 export const listDocs = async (params = {}) => {
   const res = await api.get("/docs", { params });
@@ -65,9 +63,7 @@ export const updateDocStatus = async (id, payload) => {
   }
 };
 
-/* ======================================================
-   👤 USER AUTH API (tersambung ke MongoDB)
-   ====================================================== */
+// user auth (tersambung ke MongoDB)
 
 // Ambil data user yang sedang login
 export const getCurrentUser = async () => {
@@ -111,9 +107,7 @@ export const googleLogin = async () => {
   window.location.href = `${import.meta.env.VITE_API_BASE}/auth/google`;
 };
 
-/* ======================================================
-   ⚙️ Error Handling (optional)
-   ====================================================== */
+// error handling 
 
 api.interceptors.response.use(
   (res) => res,
