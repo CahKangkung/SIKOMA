@@ -1,35 +1,41 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
+import { registerUser, googleLogin } from "../Services/api";
 
 export default function RegisterPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ username: "", email: "", password: "" });
-  const [agree, setAgree] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
+  const [error, setError] = useState("");
 
+  // Fungsi untuk handle input perubahan
   const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
+  // Fungsi untuk handle submit form
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!agree) {
-      alert("Anda harus menyetujui Terms & Policy sebelum mendaftar.");
-      return;
+    try {
+      await registerUser(form);
+      navigate("/login");
+    } catch (error) {
+      setError(error.response?.data?.message || "Registration failed");
     }
-    // TODO: panggil API register di sini
-    console.log("Register payload:", form);
   };
 
   return (
     <AuthLayout title="Get Started Now !" subtitle="Create your account">
       <form onSubmit={handleSubmit}>
+        {/* Username */}
         <FormField
           label="Username"
           name="username"
           value={form.username}
           onChange={handleChange}
         />
+
+        {/* Email */}
         <FormField
           label="Email"
           type="email"
@@ -37,6 +43,8 @@ export default function RegisterPage() {
           value={form.email}
           onChange={handleChange}
         />
+
+        {/* Password */}
         <FormField
           label="Password"
           type="password"
@@ -45,27 +53,17 @@ export default function RegisterPage() {
           onChange={handleChange}
         />
 
-        {/* Checkbox + link Terms */}
-        <label className="mt-3 flex items-center gap-2 text-sm text-neutral-700 select-none">
-          <input
-            type="checkbox"
-            className="accent-[#23358B]"
-            checked={agree}
-            onChange={(e) => setAgree(e.target.checked)}
-          />
-          <span>
-            I agree to{" "}
-            <button
-              type="button"
-              onClick={() => setShowTerms(true)}
-              className="text-[#23358B] hover:underline"
-            >
-              Terms & Policy
-            </button>
-          </span>
+        {/* Error message */}
+        {error && (
+          <p className="text-red-600 text-sm text-center mt-2">{error}</p>
+        )}
+
+        <label className="mt-3 flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" className="accent-[#23358B]" />
+          I agree to term & policy
         </label>
 
-        {/* tombol & spacing PERSIS sama seperti login */}
+        {/* Tombol register */}
         <button
           type="submit"
           disabled={!agree}
@@ -82,8 +80,10 @@ export default function RegisterPage() {
           Or Login with
         </div>
 
+        {/* Tombol Google */}
         <button
           type="button"
+          onClick={googleLogin}
           className="mt-3 w-full rounded-xl bg-[#133962] py-3 text-white font-semibold hover:opacity-90 transition"
         >
           Google
