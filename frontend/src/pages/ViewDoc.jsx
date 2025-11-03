@@ -1,7 +1,7 @@
 // src/pages/ViewDoc.jsx
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getDoc, deleteDoc, upload, updateDocStatus } from "../Services/api";
+import { getDoc, deleteDoc, replaceDocFile, updateDoc } from "../Services/api";
 import Sidebar from "../components/Sidebar";
 import {
   ArrowLeft,
@@ -123,48 +123,49 @@ export default function ViewDoc() {
   // Submit: update ke DB, lalu refresh UI dari respons server
   const submitAction = async (e) => {
     e.preventDefault();
-    if (!doc || saving) return; // cegah dobel submit
+    if (!doc || saving) return;
 
     try {
       setSaving(true);
-
       const status = (actionStatus && canon(actionStatus)) || "On Review";
-      const payload = { status };
-
-      if (status === "Reject") {
-        payload.comment = (comment || "").trim();
-      }
 
       if (status === "Approved") {
         if (!approvalFile) {
           alert("Saat Approved, wajib unggah dokumen pengganti.");
-          setSaving(false);
           return;
         }
-        const fd = new FormData();
-        fd.append("file", approvalFile);
-        const up = await upload(fd); // server mengembalikan fileId
-        payload.approvalFileId = up?.fileId || up?.id;
+
+        // 1) upload file and get response (file metadata or updated doc)
+        const replaceResp = await replaceDocFile(doc._id || doc.id, approvalFile);
+        // replaceResp should include new fileId or updated document; adjust according to your API
+
+        // 2) update status (include fileId if backend needs it)
+        const payload = { status: "Approved" };
+        if (replaceResp?.fileId) payload.fileId = replaceResp.fileId;
+        const updated = await updateDoc(doc._id || doc.id, payload);
+
+        setDoc(updated || replaceResp || doc);
+      } else if (status === "Reject") {
+        const updated = await updateDoc(doc._id || doc.id, {
+          status: "Reject",
+          comment: (comment || "").trim(),
+        });
+        setDoc(updated);
+      } else {
+        const updated = await updateDoc(doc._id || doc.id, { status: "On Review" });
+        setDoc(updated);
       }
 
-      const updated = await updateDocStatus(doc._id || doc.id, payload);
-
-      // segarkan tampilan berdasar data terbaru dari server
-      setDoc(updated);
-      setActionStatus(nextActionFromStatus(canon(updated?.status)));
+      setActionStatus(nextActionFromStatus(canon((doc?.status))));
       setComment("");
       setApprovalFile(null);
 
-      // refresh penuh agar pasti sinkron dengan DB (stepper, preview)
       await load();
-
-      // beri sinyal ke ManageDocs agar reload juga
       localStorage.setItem("needsReloadDocs", "1");
-
       alert("Status berhasil diperbarui.");
     } catch (e2) {
       console.error(e2);
-      alert("Gagal menyimpan status.");
+      alert("Gagal menyimpan status: " + (e2?.message || ""));
     } finally {
       setSaving(false);
     }
