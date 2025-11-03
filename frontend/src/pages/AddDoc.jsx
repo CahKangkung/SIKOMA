@@ -62,9 +62,10 @@ export default function AddDoc() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("subject", title.trim());
-      fd.append("author", recipient);
+      fd.append("author", "user");
+      fd.append("recipient", recipient);
       fd.append("date", uploadDate);
-      fd.append("dueDate", due);
+      fd.append("due", due);
       fd.append("status", "Uploaded");
       fd.append("comment", "");
       if (notes?.trim()) fd.append("notes", notes.trim());

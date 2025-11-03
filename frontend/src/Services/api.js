@@ -20,14 +20,14 @@ export const deleteDoc = async (id) => {
   return res.data;
 };
 
-export const approveWithFile = async (id, file) => {
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await api.post(`/docs/${id}/approve`, fd, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  return res.data;
-};
+// export const approveWithFile = async (id, file) => {
+//   const fd = new FormData();
+//   fd.append("file", file);
+//   const res = await api.post(`/docs/${id}/approve`, fd, {
+//     headers: { "Content-Type": "multipart/form-data" },
+//   });
+//   return res.data;
+// };
 
 export const upload = async (formData) => {
   const res = await api.post("/upload", formData, {
@@ -48,7 +48,7 @@ export const summarizePreview = async (formData) => {
   return res.data;
 };
 
-export const updateDocStatus = async (id, payload) => {
+export const updateDoc = async (id, payload) => {
   try {
     const res = await api.put(`/docs/${id}`, payload);
 
@@ -60,3 +60,11 @@ export const updateDocStatus = async (id, payload) => {
     throw e;
   }
 };
+
+export async function replaceDocFile(id, file) {
+  const fd = new FormData();
+  fd.append("file", file); // ensure backend expects field name "file"
+  // use the shared `api` instance; change to .put(...) if your API expects PUT
+  const res = await api.put(`/docs/${id}/file`, fd);
+  return res.data;
+}

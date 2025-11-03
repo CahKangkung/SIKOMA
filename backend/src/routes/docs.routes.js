@@ -3,8 +3,10 @@ import { getDb, getBucket } from "../services/db.js";
 import { letters } from "../models/letters.js";
 import { letterChunks } from "../models/letterChunks.js";
 import { ObjectId } from "mongodb";
+import multer from "multer";
 
 const router = Router();
+const upload = multer();
 
 /* =========================
    LIST DOKUMEN
@@ -40,6 +42,7 @@ router.get("/docs", async (req, res, next) => {
         subject: d.subject,
         number: d.number,
         date: d.date,
+        due: d.due,
         status: d.status, // ⬅️ perbaikan: sebelumnya salah referensi doc.status
         author: d.author ?? null,
         recipient: d.recipient ?? null,
@@ -73,6 +76,7 @@ router.get("/docs/:id", async (req, res, next) => {
       subject: doc.subject,
       number: doc.number,
       date: doc.date,
+      due: doc.due,
       summary: doc.summary || "",
       status: doc.status,
       author: doc.author ?? null,
@@ -89,10 +93,14 @@ router.get("/docs/:id", async (req, res, next) => {
 router.put("/docs/:id", async (req, res, next) => {
   try {
     const db = await getDb();
+    const bucket = await getBucket();  
     const lcol = letters(db);
 
     const id = req.params.id;
     const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
+
+    const current = await lcol.findOne({ _id });
+    if (!current) return res.status(404).json({ error: "not_found" });
 
     const patch = req.body || {};
     const $set = { updatedAt: new Date() };
@@ -106,16 +114,36 @@ router.put("/docs/:id", async (req, res, next) => {
     }
     if (typeof patch.comment === "string") $set.comment = patch.comment;
     if (patch.approvalFileId) {
-      $set.attachments = [{ fileId: patch.approvalFileId, mime: "application/pdf" }];
+      const old = (current.attachments || [])[0];
+      if (old?.fileId) {
+        try {
+          const oldFid = ObjectId.isValid(old.fileId) ? new ObjectId(old.fileId) : old.fileId;
+          await bucket.delete(oldFid);
+        } catch (e) {
+          // jangan gagalkan seluruh request kalau gagal hapus file lama
+          console.warn("delete old GridFS file warn:", e?.message || e);
+        }
+      }
+      const newFid = ObjectId.isValid(patch.approvalFileId)
+        ? new ObjectId(patch.approvalFileId)
+        : patch.approvalFileId;
+
+      $set.attachments = [
+        {
+          fileId: newFid,
+          mime: patch.approvalMime || "application/pdf",
+          name: patch.approvalFileName || old?.name || "approved.pdf",
+        },
+      ];
     }
 
     const result = await lcol.findOneAndUpdate(
       { _id },
       { $set },
-      { returnDocument: "after", returnOriginal: false }
+      { returnDocument: "after" }
     );
     console.log(result)
-    const updated = result;
+    const updated = result?.value || result; // antisipasi driver lama
     if (!updated) return res.status(404).json({ error: "not_found" });
 
     res.json({
@@ -134,57 +162,72 @@ router.put("/docs/:id", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-/* =========================
-   UPDATE STATUS (APPROVE/REJECT/ON REVIEW)
-   PATCH /api/docs/:id/status
-   Body: { status, comment?, approvalFileId? }
-   ========================= */
-// router.patch("/docs/:id/status", async (req, res, next) => {
-//   try {
-//     const db = await getDb();
-//     const lcol = letters(db);
+router.put("/docs/:id/file", upload.single("file"), async (req, res, next) => {
+  try {
+    const db = await getDb();
+    const bucket = await getBucket();
+    const lcol = letters(db);
 
-//     const id = req.params.id;
-//     const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
+    const id = req.params.id;
+    const _id = ObjectId.isValid(id) ? new ObjectId(id) : id;
 
-//     const { status, comment, approvalFileId } = req.body || {};
-//     if (!status) return res.status(400).json({ error: "missing_status" });
+    const doc = await lcol.findOne({ _id });
+    if (!doc) return res.status(404).json({ error: "not_found" });
+    if (!req.file) return res.status(400).json({ error: "file_required" });
 
-//     const norm = String(status).toLowerCase().replace(/\s|_/g, "");
-//     const toSave =
-//       norm === "approved" || norm === "approve" ? "Approved" :
-//       norm === "reject"   || norm === "rejected"? "Reject"   :
-//       "On Review";
+    // Hapus file lama (jika ada), tapi jangan gagalkan request kalau gagal
+    const old = (doc.attachments || [])[0];
+    if (old?.fileId) {
+      try {
+        const oldFid = ObjectId.isValid(old.fileId) ? new ObjectId(old.fileId) : old.fileId;
+        await bucket.delete(oldFid);
+      } catch (e) {
+        console.warn("warn delete old GridFS:", e?.message || e);
+      }
+    }
 
-//     const $set = { status: toSave, updatedAt: new Date() };
-//     if (comment) $set.comment = comment;
-//     if (approvalFileId) {
-//       $set.attachments = [{ fileId: approvalFileId, mime: "application/pdf" }];
-//     }
+    const { originalname, mimetype, buffer } = req.file;
 
-//     const result = await lcol.findOneAndUpdate(
-//       { _id },
-//       { $set },
-//       { returnDocument: "after", returnOriginal: false }
-//     );
-//     const updated = result.value;
-//     if (!updated) return res.status(404).json({ error: "not_found" });
+    // Simpan file baru ke GridFS
+    const uploadStream = bucket.openUploadStream(originalname, { contentType: mimetype });
+    uploadStream.end(buffer);
 
-//     res.json({
-//       _id: String(updated._id),
-//       subject: updated.subject,
-//       number: updated.number,
-//       date: updated.date,
-//       summary: updated.summary || "",
-//       status: updated.status,
-//       author: updated.author ?? null,
-//       recipient: updated.recipient ?? null,
-//       attachments: updated.attachments || [],
-//       createdAt: updated.createdAt,
-//       updatedAt: updated.updatedAt,
-//     });
-//   } catch (e) { next(e); }
-// });
+    uploadStream.once("error", next);
+
+    uploadStream.once("finish", async () => {
+      // ❗ Tidak ada argumen 'file' di sini. Gunakan uploadStream.id
+      const newFileId = uploadStream.id; // ObjectId
+
+      const newAtt = {
+        name: originalname,
+        mime: mimetype,
+        fileId: newFileId,
+      };
+
+      await lcol.updateOne(
+        { _id },
+        { $set: { attachments: [newAtt], updatedAt: new Date() } }
+      );
+
+      const updated = await lcol.findOne({ _id });
+      return res.json({
+        _id: String(updated._id),
+        subject: updated.subject,
+        number: updated.number,
+        date: updated.date,
+        summary: updated.summary || "",
+        status: updated.status,
+        author: updated.author ?? null,
+        recipient: updated.recipient ?? null,
+        attachments: updated.attachments || [],
+        createdAt: updated.createdAt,
+        updatedAt: updated.updatedAt,
+      });
+    });
+  } catch (e) {
+    next(e);
+  }
+});
 
 /* =========================
    HAPUS DOKUMEN

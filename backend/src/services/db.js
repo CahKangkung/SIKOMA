@@ -1,8 +1,16 @@
 import { MongoClient, GridFSBucket } from "mongodb";
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from "url";
 
-const client = new MongoClient(process.env.MONGODB_URI);
+// dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, "../../.env") });
+
+const client = new MongoClient(process.env.MONGO_URI);
 
 export async function getDb() {
   if (!client.topology || !client.topology.isConnected()) {

@@ -100,6 +100,8 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     const formDate = normalizeDate((req.body.date || "").trim());
     const formAuthor = (req.body.author || "").trim();
     const formStatus = (req.body.status || "").trim();
+    const formDue = normalizeDate((req.body.due || "").trim());
+    const formRecipient = (req.body.recipient || "").trim();
 
     // 1) Ekstrak teks untuk indexing
     let text = "";
@@ -155,6 +157,8 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
       date,
       type,
       author: formAuthor || "—",
+      recipient: formRecipient || "—",
+      due: formDue || "—",
       status: formStatus || "On Review",
       summary: summary || "",
       attachments: [attachment],

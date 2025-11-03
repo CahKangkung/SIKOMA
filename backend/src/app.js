@@ -44,7 +44,7 @@ app.use((err, _req, res, _next) => {
 
 // database connection 
 const MONGO_URI_USER = process.env.MONGODB_URI_USER; // untuk user model 
-const MONGO_URI_LETTERS = process.env.MONGODB_URI; // untuk letter chunks
+const MONGO_URI_LETTERS = process.env.MONGO_URI; // untuk letter chunks
 const DB_NAME = process.env.DB_NAME || "letter-chunks"
 
 const connectDB = async () => {
