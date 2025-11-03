@@ -28,11 +28,33 @@ app.use((err, _req, res, _next) => {
     res.status(500).json({ error: "internal error" });
 });
 
-// Connect MongoDB
-mongoose
-    .connect("mongodb+srv://sikoma:sikoma123@cluster0.5ghqr0g.mongodb.net/?appName=Cluster0")
-    .then(()=> console.log("MongoDB connected"))
-    .catch((err) => console.error("MongoDB error", err));
+// database connection 
+const MONGO_URI_USER = process.env.MONGODB_URI_USER; // untuk user model 
+const MONGO_URI_LETTERS = process.env.MONGODB_URI; // untuk letter chunks
+const DB_NAME = process.env.DB_NAME || "letter-chunks"
+
+const connectDB = async () => {
+    try {
+        // connect mongoose (untuk autentikasi & user.js)
+        await mongoose.connect(MONGO_URI_USER);
+        console.log("Mongoose connected (User DB)");
+
+        // connect mongoclient (untuk letterChunks)
+        const client = new MongoClient(MONGO_URI_LETTERS);
+        await client.connect();
+        const dbb = client.db(DB_NAME);
+
+        // simpan ke global app agar bisa diakses di controller 
+        app.locals.db = db;
+        
+        console.log(`MongoClient connected (DB: ${DB_NAME})`);
+    } catch (err) {
+        console.error("Database connection error:", err.message);
+        process.exit(1);
+    }
+};
+
+connectDB();
 
 app.use("/api/auth", userRoutes);
 

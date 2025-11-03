@@ -26,6 +26,26 @@ export default function AccountSettingsPage() {
   const [openDelete, setOpenDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
+  // Ambil data user saat halaman dibuka
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await getCurrentUser();
+        setForm({
+          username: res.user.username || "",
+          email: res.user.email || "",
+          password: "", // password tidak dikembalikan dari server
+        });
+      } catch (err) {
+        console.error(err);
+        setMessage("Failed to load user data. Please login again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
+
   const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
