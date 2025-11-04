@@ -1,19 +1,12 @@
-// const bcrypt = require("bcrypt"); 
-// const jwt = require("jsonwebtoken");
-// const User = require ("../models/User");
-// const axios = require("axios"); 
-// const crypto = require("crypto");
-// const nodemailer = require("nodemailer");
-
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import User from "../models/User.js";
-import axios from "axios";
-import crypto from "crypto";
-import nodemailer from "nodemailer";
+const bcrypt = require("bcrypt"); 
+const jwt = require("jsonwebtoken");
+const User = require ("../models/User");
+const axios = require("axios"); 
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 // Register
-export const register = async (req, res) => {
+const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
@@ -39,7 +32,7 @@ export const register = async (req, res) => {
 };
 
 // Login
-export const login = async (req, res) => {
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -74,14 +67,14 @@ export const login = async (req, res) => {
 };
 
 // Logout
-export const logout = (req, res) => {
+const logout = (req, res) => {
     res.clearCookie("token"); 
     res.status(200).json({message: "Logged out successfully"}); 
 }; 
 
 // Get current user 
 
-export const getMe = async(req, res) => {
+const getMe = async(req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user) return res.status(404).json({message: "User not found"});
@@ -93,7 +86,7 @@ export const getMe = async(req, res) => {
 };
 
 // Google login: Redirect user to Goggle's consent screen 
-export const googleLogin = (req, res) => {
+const googleLogin = (req, res) => {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
   const options = { 
     redirect_uri: `http://localhost:5000/api/auth/google/callback`,
@@ -111,7 +104,7 @@ export const googleLogin = (req, res) => {
 }; 
 
 // Google callback: Handle the callback from Google 
-export const googleCallback = async (req, res) => {
+const googleCallback = async (req, res) => {
   const code = req.query.code; 
 
   try {
@@ -162,7 +155,7 @@ export const googleCallback = async (req, res) => {
 };
 
 // Forgot password: send reset link to email 
-export const forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body; 
     const user = await User.findOne({email}); 
@@ -209,7 +202,7 @@ export const forgotPassword = async (req, res) => {
 };
 
 // reset password: verify token 
-export const resetPassword = async (req, res) => {
+const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { newPassword } = req.body;
@@ -243,7 +236,7 @@ export const resetPassword = async (req, res) => {
 
 // update profile 
 
-export const updateProfile = async (req, res) => {
+const updateProfile = async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const user = await User.findById(req.user.id);
@@ -278,7 +271,7 @@ export const updateProfile = async (req, res) => {
 
 // delete account 
 
-export const deleteAccount = async (req, res) => {
+const deleteAccount = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -290,15 +283,15 @@ export const deleteAccount = async (req, res) => {
   }
 };
 
-// module.exports = { 
-//     register, 
-//     login,
-//     logout,
-//     getMe,
-//     googleLogin,
-//     googleCallback,
-//     forgotPassword,
-//     resetPassword,
-//     updateProfile,
-//     deleteAccount, 
-// };
+module.exports = { 
+    register, 
+    login,
+    logout,
+    getMe,
+    googleLogin,
+    googleCallback,
+    forgotPassword,
+    resetPassword,
+    updateProfile,
+    deleteAccount, 
+};

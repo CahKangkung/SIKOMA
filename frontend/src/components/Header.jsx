@@ -1,4 +1,3 @@
-// src/components/Header.jsx
 export default function Header({ title, rightContent }) {
   return (
     <header className="flex justify-between items-center px-8 py-4 bg-white border-b border-gray-200 relative">

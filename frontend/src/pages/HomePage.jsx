@@ -2,14 +2,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import logo from "../assets/logo.png";
 import { useNavigate } from "react-router-dom";
-import {
-  UserRound,
-  Building2,
-  PlusSquare,
-  User as UserIcon,
-  IdCard,
-  LogOut,
-} from "lucide-react";
+import { UserRound, Building2, PlusSquare, User as UserIcon, IdCard, LogOut } from "lucide-react";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -26,11 +19,10 @@ export default function HomePage() {
     navigate("/login");
   };
 
-  // Tutup dropdown jika klik di luar
+  // Tutup dropdown
   useEffect(() => {
     const onClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target))
-        setMenuOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
     };
     const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
     document.addEventListener("mousedown", onClick);
@@ -43,7 +35,6 @@ export default function HomePage() {
 
   return (
     <section className="min-h-screen flex flex-col justify-between bg-white">
-      {/* HEADER */}
       <header className="flex justify-between items-center px-10 py-6 border-b">
         <div className="flex items-center gap-2">
           <img src={logo} alt="SIKOMA" className="h-8 w-auto md:h-10" />
@@ -65,22 +56,18 @@ export default function HomePage() {
               role="menu"
               className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-neutral-900 text-white shadow-2xl ring-1 ring-black/10 z-50"
             >
-              {/* Account Detail */}
               <button
                 role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
-                  navigate("/account", { state: { fromOrg: false } }); // ⬅️ tambahkan state agar tanpa sidebar
+                  navigate("/account");
                 }}
                 className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
               >
                 <IdCard className="h-5 w-5 text-white/80" />
                 <span>Account Detail</span>
               </button>
-
               <div className="h-px bg-white/10" />
-
-              {/* Logout */}
               <button
                 role="menuitem"
                 onClick={handleLogout}
@@ -94,7 +81,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* MAIN CONTENT */}
+      {/* Main Content */}
       <main className="flex flex-col items-center justify-center text-center px-6 py-10">
         <h1 className="text-4xl font-extrabold text-neutral-800">
           Welcome, {currentUser ? currentUser.name : "User"}!
@@ -137,7 +124,6 @@ export default function HomePage() {
         </div>
       </main>
 
-      {/* FOOTER */}
       <footer className="text-center py-6 text-sm text-neutral-500 border-t">
         © 2025 SIKOMA. Simplify, track and connect with SIKOMA
       </footer>
