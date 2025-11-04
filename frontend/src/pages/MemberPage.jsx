@@ -1,5 +1,6 @@
+// src/pages/MemberPage.jsx
 import React, { useState } from "react";
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../components/SideBar"
 import Header from "../components/Header";
 import { Search, ShieldCheck, Trash2, Check, X } from "lucide-react";
 import { users, organizations, joinRequests } from "../data/DummyData";
@@ -30,7 +31,7 @@ export default function MemberPage() {
   );
 
   const filteredMembers = currentMembers.filter((m) =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (m?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // === Popup Confirmation ===

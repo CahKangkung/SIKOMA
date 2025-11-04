@@ -11,6 +11,9 @@ import HomePage from "./pages/HomePage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import AccountDetailPage from "./pages/AccountDetailPage";
 import AccountSettingsPage from "./pages/AccountSettingsPage";
+import OrganizationPage from "./pages/OrganizationPage.jsx";
+import SettingOrganizationPage from "./pages/SettingOrganizationPage.jsx";
+import MemberPage from "./pages/MemberPage.jsx";
 import ManageDocs from './pages/ManageDocs';
 import ViewDoc from './pages/ViewDoc.jsx';
 import AddDoc from './pages/AddDoc.jsx';
@@ -33,6 +36,9 @@ export default function App() {
       <Route path="/home/new" element={<CreateOrganizationPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/account" element={<AccountDetailPage />} />
+      <Route path="/organization" element={<OrganizationPage />} />
+      <Route path="/organization/settings" element={<SettingOrganizationPage />} />
+      <Route path="/member" element={<MemberPage />} />
       <Route path="/settings" element={<AccountSettingsPage />} />
       <Route path="/manage-document" element={<ManageDocs />} />
       <Route path="/viewdoc" element={<ViewDoc />} />
