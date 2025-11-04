@@ -1,9 +1,11 @@
 // src/components/Sidebar.jsx
-import { NavLink } from "react-router-dom";
-import { Home, FileText, Users, User, LogOut } from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { Home, FileText, Users, User, ArrowLeftCircle} from "lucide-react";
 import logo from "../assets/logo.png";
 
 export default function Sidebar() {
+  const navigate = useNavigate();
+
   const menu = [
     { name: "Dashboard", icon: Home, path: "/dashboard", end: true }, // exact
     { name: "Manage Document", icon: FileText, path: "/manage-document" },
@@ -44,15 +46,11 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Logout */}
+      {/* Back to Home */}
       <button
-        onClick={() => {
-          localStorage.removeItem("isLoggedIn");
-          window.location.href = "/login";
-        }}
-        className="mt-auto flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-      >
-        <LogOut size={20} /> Logout
+        onClick={() => navigate("/home")}
+        className="mt-auto flex items-center gap-2 px-4 py-2 text-[#23358B] hover:bg-blue-50 rounded-lg transition font-medium">
+        <ArrowLeftCircle size={20} /> Back to Home
       </button>
     </aside>
   );
