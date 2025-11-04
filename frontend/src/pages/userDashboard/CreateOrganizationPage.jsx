@@ -1,17 +1,17 @@
 // src/pages/CreateOrganizationPage.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "../../context/UserContext";
 import { ChevronLeft, User as UserIcon } from "lucide-react";
-import { organizations } from "../data/DummyData";
 
 export default function CreateOrganizationPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
+  const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const { user } = useUser();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -25,29 +25,27 @@ export default function CreateOrganizationPage() {
       setSubmitting(true);
       await new Promise((r) => setTimeout(r, 1000));
 
-      const newOrg = {
-        id: Date.now(),
-        name,
-        authorId: currentUser?.id || 0,
-        authorName: currentUser?.name || "Unknown",
-        members: [currentUser?.id],
-        description: desc,
-      };
+      const res = await fetch("http://localhost:5000/api/organization/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ name, description })
+      });
 
-      const allOrgs = [...organizations, newOrg];
-      localStorage.setItem("organizations", JSON.stringify(allOrgs));
+      const data = await res.json();
 
-      const myOrgs =
-        JSON.parse(localStorage.getItem("myOrganizations") || "[]") || [];
-      localStorage.setItem(
-        "myOrganizations",
-        JSON.stringify([...myOrgs, { ...newOrg, status: "active" }])
-      );
-
-      alert("Organization created successfully!");
-      navigate("/home/current");
+      if (res.ok) {
+        alert("Organization created successfully!");
+        navigate("/home/current");
+      } else {
+        throw new Error(`Failed to create organization: ${data.message}`);
+      }
+      
     } catch {
       setError("Something went wrong.");
+
     } finally {
       setSubmitting(false);
     }
@@ -63,7 +61,7 @@ export default function CreateOrganizationPage() {
           <ChevronLeft size={18} /> Return
         </button>
         <div className="flex items-center gap-2 text-[#23358B] font-medium">
-          <span>{currentUser?.name || "User"}</span>
+          <span>{user?.username || "User"}</span>
           <UserIcon className="w-5 h-5" />
         </div>
       </header>
@@ -95,8 +93,8 @@ export default function CreateOrganizationPage() {
             </label>
             <textarea
               rows={5}
-              value={desc}
-              onChange={(e) => setDesc(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               className="w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-[#23358B] resize-none"
             />
           </div>

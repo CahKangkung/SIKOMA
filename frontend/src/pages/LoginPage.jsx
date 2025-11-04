@@ -8,32 +8,47 @@ import { users } from "../data/DummyData";
 export default function LoginPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // handle input
   const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setForm((prev) => ({ 
+      ...prev, 
+      [e.target.name]: e.target.value 
+    }));
 
   // handle submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError("");
 
-    // cari user berdasarkan email dan password
-    const matchedUser = users.find(
-      (user) =>
-        user.email.toLowerCase() === form.email.trim().toLowerCase() &&
-        user.password === form.password
-    );
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify(form)
+      });
 
-    if (matchedUser) {
-      // simpan user aktif ke localStorage
-      localStorage.setItem("currentUser", JSON.stringify(matchedUser));
+      const data = await res.json();
 
-      // arahkan ke halaman Home
-      navigate("/home");
-    } else {
-      setError("Email atau password salah.");
+      if (res.ok) {
+        alert("Login Successful!");
+        navigate("/home");
+      } else {
+        throw new Error(`Login Failed: ${data.message}`);
+      }      
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+    
   };
 
   return (
@@ -75,9 +90,10 @@ export default function LoginPage() {
         {/* Submit button */}
         <button
           type="submit"
+          disabled={loading}
           className="mt-6 w-full rounded-xl bg-[#133962] py-3 text-white font-semibold hover:opacity-90 transition"
         >
-          Login
+          {loading ? "Login..." : "Login"}
         </button>
 
         {/* Alternative login */}

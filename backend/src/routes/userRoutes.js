@@ -1,5 +1,5 @@
-const express = require("express");
-const {
+import express from "express";
+import {
   register,
   login,
   logout,
@@ -9,9 +9,9 @@ const {
   forgotPassword,
   resetPassword,
   updateProfile,
-  deleteAccount,
-} = require("../controllers/userController");
-const { verifyToken } = require("../middlewares/authMiddleware");
+  deleteAccount, 
+} from "../controllers/userController.js";
+import verifyToken from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -35,4 +35,4 @@ router.post("/reset-password/:token", resetPassword);
 router.put("/update", verifyToken, updateProfile);
 router.delete("/delete", verifyToken, deleteAccount);
 
-module.exports = router;
+export default router;

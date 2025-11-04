@@ -1,23 +1,36 @@
 // src/pages/HomePage.jsx
 import React, { useEffect, useRef, useState } from "react";
-import logo from "../assets/logo.png";
+import logo from "../../assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { UserRound, Building2, PlusSquare, User as UserIcon, IdCard, LogOut } from "lucide-react";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
-  // Ambil user aktif dari localStorage
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/auth/me", {
+          credentials: "include"
+        });
 
-  // Logout
-  const handleLogout = () => {
-    setMenuOpen(false);
-    localStorage.removeItem("currentUser");
-    navigate("/login");
-  };
+        const data = await res.json();
+        
+        if (res.ok) {
+          setUser(data.user);
+        }     
+
+      } catch (err) {
+        console.error("Fetch user error: ", err);       
+      } 
+    };
+
+    fetchUser();
+  }, []);
+  // }, [navigate]);
 
   // Tutup dropdown
   useEffect(() => {
@@ -33,6 +46,19 @@ export default function HomePage() {
     };
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout Error: ", err);
+    }
+  };
+
   return (
     <section className="min-h-screen flex flex-col justify-between bg-white">
       <header className="flex justify-between items-center px-10 py-6 border-b">
@@ -47,7 +73,7 @@ export default function HomePage() {
             aria-expanded={menuOpen}
             className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
           >
-            <span>{currentUser ? currentUser.name : "User"}</span>
+            <span>{user?.username || "User"}</span>
             <UserIcon className="w-6 h-6" />
           </button>
 
@@ -84,7 +110,7 @@ export default function HomePage() {
       {/* Main Content */}
       <main className="flex flex-col items-center justify-center text-center px-6 py-10">
         <h1 className="text-4xl font-extrabold text-neutral-800">
-          Welcome, {currentUser ? currentUser.name : "User"}!
+          Welcome, {user?.username || "User"}!
         </h1>
         <p className="mt-2 text-neutral-600">
           Manage your organizations easily. Choose an action below.

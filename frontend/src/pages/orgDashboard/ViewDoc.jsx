@@ -1,8 +1,8 @@
 // src/pages/ViewDoc.jsx
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getDoc, deleteDoc, upload, updateDocStatus } from "../Services/api";
-import Sidebar from "../components/Sidebar";
+import { getDoc, deleteDoc, upload, updateDocStatus } from "../../Services/api";
+import Sidebar from "../../components/Sidebar";
 import {
   ArrowLeft,
   Trash2,

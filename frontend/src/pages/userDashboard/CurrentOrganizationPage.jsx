@@ -1,45 +1,104 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "../../context/UserContext";
 import { Plus, Search, ChevronLeft, User as UserIcon } from "lucide-react";
-import { organizations } from "../data/DummyData";
+import { organizations } from "../../data/DummyData";
 
 export default function CurrentOrganizationsPage() {
+  const { user, loading } = useUser();
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [orgList, setOrgList] = useState([]);
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  // const [orgList, setOrgList] = useState([]);
 
-  // Load data dari DummyData dan localStorage
+  const [allOrgs, setAllOrgs] = useState([]);
+  const [createdOrgs, setCreatedOrgs] = useState([]);
+  const [joinedOrgs, setJoinedOrgs] = useState([]); 
+  const [pendingOrgs, setPendingOrgs] = useState([]); 
+
+  // Ambil organisasi yang dimiliki user
   useEffect(() => {
-    const created = organizations
-      .filter((org) => org.authorId === currentUser?.id)
-      .map((org) => ({ ...org, status: "created" }));
+    const fetchMyOrgs = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/organization/my", {
+          credentials: "include"
+        });
 
-    const joined =
-      JSON.parse(localStorage.getItem("joinedOrganizations"))?.map((org) => ({
-        ...org,
-        status: "joined",
-      })) || [];
+        const data = await res.json();
 
-    const pending =
-      JSON.parse(localStorage.getItem("pendingRequests"))?.map((org) => ({
-        ...org,
-        status: "pending",
-      })) || [];
+        if (res.ok) {
+          setAllOrgs(data.all || []);
+          setCreatedOrgs(data.created || []);
+          setJoinedOrgs(data.joined || []);
+          setPendingOrgs(data.pending || []);        
+        } else {
+          throw new Error(`Failed to load organization: ${data.message}`);
+        }
+      } catch (err) {
+        console.error("Error fetching organization: ", err);
+      }      
+    }
 
-    setOrgList([...created, ...joined, ...pending]);
-  }, [currentUser]);
+    fetchMyOrgs();
+  }, [user]);
 
-  // Filter hasil berdasarkan dropdown dan pencarian
-  const filtered = orgList.filter((org) => {
-    const matchFilter =
-      filter === "all" ? true : org.status === filter.toLowerCase();
-    const matchSearch = org.name
-      .toLowerCase()
-      .includes(search.toLowerCase().trim());
-    return matchFilter && matchSearch;
-  });
+  // Cancel request join user
+  const cancelReqOrg = async (orgId, orgName) => {
+    if (!confirm(`Cancel request to join "${orgName}"?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/organization/${orgId}/cancel`, {
+        method: "POST",
+        credentials: "include"
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setPendingOrgs(pendingOrgs.filter((o) => o._id !== orgId));
+        setAllOrgs(allOrgs.filter((o) => o._id !== orgId));
+        alert(`Request to join "${orgName}" has been cancelled`);
+      } else {
+        console.error("Failed to cancel request: ", data.message);
+      }
+    } catch (err) {
+      console.error("Error canceling request: ", err);
+      alert(err.message);
+    }
+  };
+
+  // Filter organisasi user
+  const filteredOrgs = () => {
+    let orgs = [];
+
+    switch (filter) {
+      case "created":
+        orgs = createdOrgs.map((org) => ({ ...org, status: "created" }));
+        break;
+      case "joined":
+        orgs = joinedOrgs.map((org) => ({ ...org, status: "joined" }));
+        break;
+      case "pending":
+        orgs = pendingOrgs.map((org) => ({ ...org, status: "pending" }));
+        break;
+      default: 
+        orgs = [
+          ...createdOrgs.map((org) => ({ ...org, status: "created" })),
+          ...joinedOrgs.map((org) => ({ ...org, status: "joined" })),
+          ...pendingOrgs.map((org) => ({ ...org, status: "pending" }))
+        ];
+    }
+
+    if (search.trim()) {
+      orgs = orgs.filter((org) => org.name.toLowerCase().includes(search.toLowerCase().trim()));
+    }
+
+    return orgs;
+  };
+
+  const filtered = filteredOrgs();
 
   // Tampilan kosong
   const renderEmptyState = () => {
@@ -134,14 +193,14 @@ export default function CurrentOrganizationsPage() {
       {/* ===== Header ===== */}
       <header className="flex justify-between items-center px-6 py-4 border-b bg-white">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/home")}
           className="inline-flex items-center gap-2 text-sm text-[#23358B] hover:underline"
         >
           <ChevronLeft size={18} /> Return
         </button>
 
         <div className="flex items-center gap-2 text-[#23358B] font-medium">
-          <span>{currentUser?.name || "User"}</span>
+          <span>{user?.username || "User"}</span>
           <UserIcon className="w-5 h-5" />
         </div>
       </header>
@@ -197,45 +256,63 @@ export default function CurrentOrganizationsPage() {
           {/* ===== List or Empty State ===== */}
           {filtered.length > 0 ? (
             <div className="space-y-4">
-              {filtered.map((org) => (
-                <div
-                  key={org.id}
-                  className="flex justify-between items-center bg-white rounded-xl shadow p-4 border hover:shadow-md transition"
-                >
-                  <div>
-                    <h3 className="font-semibold text-gray-800 uppercase">
-                      {org.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Author: {org.authorName}
-                    </p>
-                    <span
-                      className={`mt-2 inline-block text-xs font-semibold px-2 py-1 rounded-full ${
-                        org.status === "pending"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : org.status === "joined"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-blue-100 text-blue-700"
-                      }`}
-                    >
-                      {org.status.toUpperCase()}
-                    </span>
-                  </div>
+              {filtered.map((org) => {
+                const isCreator = org.createdBy?._id === user._id;
 
-                  {org.status !== "pending" && (
-                    <button
-                      onClick={() =>
-                        navigate("/organization", {
-                          state: { organization: org },
-                        })
-                      }
-                      className="px-4 py-2 rounded-lg bg-[#23358B] text-white hover:opacity-90"
-                    >
-                      Enter
-                    </button>
-                  )}
-                </div>
-              ))}
+                return (
+                  <div
+                    key={org._id}
+                    className="flex justify-between items-center bg-white rounded-xl shadow p-4 border hover:shadow-md transition"
+                  >
+                    <div>
+                      <h3 className="font-semibold text-gray-800 uppercase">
+                        {org.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {isCreator ? "Author: You" : `Author: ${org.createdBy?.username || "Unknown"}`}
+                      </p>
+                      <span
+                        className={`mt-2 inline-block text-xs font-semibold px-2 py-1 rounded-full ${
+                          org.status === "pending"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : org.status === "joined"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {org.status.toUpperCase()}
+                      </span>
+                    </div>
+                    
+                    {org.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => cancelReqOrg(org._id, org.name)}
+                          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        >
+                          Cancel
+                        </button>
+                        <span className="text-yellow-600 text-sm font-semibold">
+                            ⌛ Waiting for approval
+                        </span>
+                      </>
+                    )}
+
+                    {org.status !== "pending" && (
+                      <button
+                        onClick={() =>
+                          navigate(`/${org._id}/dashboard`, {
+                            state: { organization: org },
+                          })
+                        }
+                        className="px-4 py-2 rounded-lg bg-[#23358B] text-white hover:opacity-90"
+                      >
+                        Enter
+                      </button>
+                    )}
+                  </div>
+                );
+              })}                            
             </div>
           ) : (
             <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-10 text-center">

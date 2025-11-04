@@ -1,12 +1,12 @@
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const User = require("../models/User");
-const axios = require("axios");
-const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import axios from "axios";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 
 // ======================= REGISTER =======================
-const register = async (req, res) => {
+export const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
@@ -32,7 +32,7 @@ const register = async (req, res) => {
 };
 
 // ======================= LOGIN =======================
-const login = async (req, res) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -68,13 +68,13 @@ const login = async (req, res) => {
 };
 
 // ======================= LOGOUT =======================
-const logout = (req, res) => {
+export const logout = (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ message: "Logged out successfully" });
 };
 
 // ======================= GET CURRENT USER =======================
-const getMe = async (req, res) => {
+export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
     if (!user)
@@ -87,7 +87,7 @@ const getMe = async (req, res) => {
 };
 
 // ======================= GOOGLE LOGIN =======================
-const googleLogin = (req, res) => {
+export const googleLogin = (req, res) => {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
   const options = {
     redirect_uri: "http://localhost:8080/api/auth/google/callback",
@@ -104,7 +104,7 @@ const googleLogin = (req, res) => {
   res.redirect(`${rootUrl}?${qs.toString()}`);
 };
 
-const googleCallback = async (req, res) => {
+export const googleCallback = async (req, res) => {
   const code = req.query.code;
 
   try {
@@ -154,7 +154,7 @@ const googleCallback = async (req, res) => {
 };
 
 // ======================= FORGOT PASSWORD =======================
-const forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
@@ -162,7 +162,8 @@ const forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "User with that email not found" });
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpire = Date.now() + 3600000; // 1 jam
+    // const resetTokenExpire = Date.now() + 3600000; // 1 jam
+    const resetTokenExpire = Date.now() + 10000000; // 1 jam
 
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = resetTokenExpire;
@@ -195,7 +196,7 @@ const forgotPassword = async (req, res) => {
 };
 
 // ======================= RESET PASSWORD =======================
-const resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { newPassword } = req.body;
@@ -223,7 +224,7 @@ const resetPassword = async (req, res) => {
 };
 
 // ======================= UPDATE PROFILE =======================
-const updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
   try {
     const { username, email, password } = req.body;
     const user = await User.findById(req.user.id);
@@ -255,7 +256,7 @@ const updateProfile = async (req, res) => {
 };
 
 // ======================= DELETE ACCOUNT =======================
-const deleteAccount = async (req, res) => {
+export const deleteAccount = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.user.id);
     if (!user)
@@ -268,15 +269,3 @@ const deleteAccount = async (req, res) => {
   }
 };
 
-module.exports = {
-  register,
-  login,
-  logout,
-  getMe,
-  googleLogin,
-  googleCallback,
-  forgotPassword,
-  resetPassword,
-  updateProfile,
-  deleteAccount,
-};

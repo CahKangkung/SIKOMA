@@ -1,8 +1,8 @@
 // src/pages/AddDoc.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { upload, summarizePreview } from "../Services/api";
-import Sidebar from "../components/Sidebar";
+import { upload, summarizePreview } from "../../Services/api";
+import Sidebar from "../../components/Sidebar";
 import { ArrowLeft } from "lucide-react";
 
 const RECIPIENTS = [

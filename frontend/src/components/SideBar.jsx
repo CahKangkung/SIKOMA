@@ -1,15 +1,19 @@
 // src/components/Sidebar.jsx
-import { NavLink } from "react-router-dom";
-import { Home, FileText, Users, User, LogOut } from "lucide-react";
+import { NavLink, useParams, useNavigate } from "react-router-dom";
+import { Home, FileText, Users, User, ArrowLeftCircle } from "lucide-react";
 import logo from "../assets/logo.png";
 
 export default function Sidebar() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const currentOrgId = id;
+
   const menu = [
-    { name: "Dashboard", icon: Home, path: "/dashboard", end: true }, // exact
-    { name: "Manage Document", icon: FileText, path: "/manage-document" },
-    { name: "Organization", icon: Users, path: "/organization" },
-    { name: "Member", icon: User, path: "/member" },
-    { name: "Account", icon: User, path: "/account" },
+    { name: "Dashboard", icon: Home, path: `/${currentOrgId}/dashboard`, end: true }, // exact
+    { name: "Manage Document", icon: FileText, path: `/${currentOrgId}/manage-document` },
+    { name: "Organization", icon: Users, path: `/${currentOrgId}/organization` },
+    { name: "Member", icon: User, path: `/${currentOrgId}/member` },
+    { name: "Account", icon: User, path: `/account` },
   ];
 
   return (
@@ -46,13 +50,9 @@ export default function Sidebar() {
 
       {/* Logout */}
       <button
-        onClick={() => {
-          localStorage.removeItem("isLoggedIn");
-          window.location.href = "/login";
-        }}
-        className="mt-auto flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-      >
-        <LogOut size={20} /> Logout
+        onClick={() => navigate("/home")}
+        className="mt-auto flex items-center gap-2 px-4 py-2 text-[#23358B] hover:bg-blue-50 rounded-lg transition font-medium">
+        <ArrowLeftCircle size={20} /> Back to Home
       </button>
     </aside>
   );
