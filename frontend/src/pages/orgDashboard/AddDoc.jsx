@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { upload, summarizePreview } from "../../Services/api";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../components/SideBar";
 import { ArrowLeft } from "lucide-react";
 
 const RECIPIENTS = [

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
 import { Plus, Search, ChevronLeft, User as UserIcon } from "lucide-react";
-import { organizations } from "../../data/DummyData";
 
 export default function CurrentOrganizationsPage() {
   const { user, loading } = useUser();

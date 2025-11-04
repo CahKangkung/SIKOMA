@@ -1,6 +1,6 @@
 // src/pages/OrganizationPage.jsx
 import React, { useState, useEffect } from "react";
-import Sidebar from "../../components/Sidebar.jsx";
+import Sidebar from "../../components/SideBar.jsx";
 import Header from "../../components/Header.jsx";
 import { useNavigate, useParams } from "react-router-dom";
 import { useUser } from "../../context/UserContext.jsx";

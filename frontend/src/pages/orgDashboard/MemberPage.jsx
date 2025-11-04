@@ -1,6 +1,6 @@
 // src/pages/MemberPage.jsx
 import React, { useState } from "react";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 import { Search, ShieldCheck, Trash2, Check, X } from "lucide-react";
 import { users, organizations, joinRequests } from "../../data/DummyData";

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getDoc, deleteDoc, upload, updateDocStatus } from "../../Services/api";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../components/SideBar";
 import {
   ArrowLeft,
   Trash2,
@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   UploadCloud,
   Cog,
-  XCircle,              // ⬅️ tambah ikon X
+  XCircle,              
 } from "lucide-react";
 
 /* --- helpers --- */
