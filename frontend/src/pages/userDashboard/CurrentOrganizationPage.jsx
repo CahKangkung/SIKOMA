@@ -9,6 +9,7 @@ export default function CurrentOrganizationsPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [loadingPage, setLoadingPage] = useState(false);
   // const [orgList, setOrgList] = useState([]);
 
   const [allOrgs, setAllOrgs] = useState([]);
@@ -18,9 +19,15 @@ export default function CurrentOrganizationsPage() {
 
   // Ambil organisasi yang dimiliki user
   useEffect(() => {
+    if (loading) return; // ⚠️ PENTING!
+    if (!user) {
+      navigate("/login");
+      return;
+    }
     const fetchMyOrgs = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/organization/my", {
+        setLoadingPage(true);
+        const res = await fetch("http://localhost:8080/api/organization/my", {
           credentials: "include"
         });
 
@@ -36,11 +43,14 @@ export default function CurrentOrganizationsPage() {
         }
       } catch (err) {
         console.error("Error fetching organization: ", err);
-      }      
+      } finally {
+        setLoadingPage(false);
+      }
     }
 
     fetchMyOrgs();
-  }, [user]);
+  }, [user, loading, navigate]);
+  // }, [user]);
 
   // Cancel request join user
   const cancelReqOrg = async (orgId, orgName) => {
@@ -49,7 +59,7 @@ export default function CurrentOrganizationsPage() {
     }
 
     try {
-      const res = await fetch(`http://localhost:5000/api/organization/${orgId}/cancel`, {
+      const res = await fetch(`http://localhost:8080/api/organization/${orgId}/cancel`, {
         method: "POST",
         credentials: "include"
       });
@@ -188,6 +198,18 @@ export default function CurrentOrganizationsPage() {
     );
   };
 
+  // ✅ Loading state
+  if (loading || loadingPage) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="text-lg text-gray-600 mb-2">Loading...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="bg-gray-50 min-h-screen flex flex-col justify-between">
       {/* ===== Header ===== */}
@@ -257,7 +279,8 @@ export default function CurrentOrganizationsPage() {
           {filtered.length > 0 ? (
             <div className="space-y-4">
               {filtered.map((org) => {
-                const isCreator = org.createdBy?._id === user._id;
+                const userId = user.id || user._id;
+                const isCreator = org.createdBy?._id === userId;
 
                 return (
                   <div

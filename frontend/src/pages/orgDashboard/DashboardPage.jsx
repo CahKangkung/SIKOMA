@@ -11,17 +11,21 @@ export default function DashboardPage() {
   const [org, setOrg] = useState(null);
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const [loadingPage, setLoadingPage] = useState(false);
+
+  const userId = user ? (user.id || user._id) : null;
 
   useEffect(() => {
     const fetchOrg = async () => {
       
       try {
+        setLoadingPage(true);
         console.log("🔍 Fetching organization:", id);
         console.log("👤 Current user:", user);
 
         const userId = user.id || user._id;
 
-        const res = await fetch(`http://localhost:5000/api/organization/${id}`, {
+        const res = await fetch(`http://localhost:8080/api/organization/${id}`, {
           credentials: "include"
         });
 
@@ -50,12 +54,25 @@ export default function DashboardPage() {
       } catch (err) {
         console.error("Error fetching organization data: ", err);
         navigate("/home/current");
+      } finally {
+        setLoadingPage(false);
       }
     };
 
     fetchOrg();
     
   }, [id, user, navigate]);
+
+  if (loading || loadingPage) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="text-lg text-gray-600 mb-2">Loading...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
 
   return (
@@ -74,6 +91,20 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold mb-8 text-black">
             {org?.name || "Loading..."}
           </h1>
+
+          <h2 className="text-lg font-semibold mb-2">Organization Info</h2>
+          {org ? (
+            <>
+              <p><strong>Author: </strong>{org.createdBy?.username}</p>
+              <p><strong>Total Members: </strong>{org.members.length}</p>
+              <p><strong>Your Role:</strong> {
+                  org.members.find((m) => m.user._id === userId)?.role || "Unknown"
+              }</p>
+            </>
+          ) : (
+            <p className="text-gray-500">Loading organization info...</p>
+          )}
+          
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card title="Uploaded" value="50" color="bg-blue-100" text="text-blue-700" />

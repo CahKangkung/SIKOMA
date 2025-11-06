@@ -1,7 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
-import { getDb, getBucket } from "../services/db.js";
-import { letters } from "../models/letters.js";
+import { getDocumentDB, getBucket } from "../services/db.js";
+// import { letters } from "../models/letters.js";
+import { LetterModel } from "../models/letters.js";
 import { letterChunks } from "../models/letterChunks.js";
 import { parseDocx } from "../services/parse.js";
 import { ocrBuffer } from "../services/ocr.js";
@@ -52,7 +53,8 @@ function normalizeDate(input) {
 /* ===================== PREVIEW SUMMARY (tidak menyimpan) ===================== */
 router.post("/summarize-preview", upload.single("file"), async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "file required" });
+    // Add ok:false
+    if (!req.file) return res.status(400).json({ ok:false, error: "file required" });
     const file = req.file;
     const mime = file.mimetype || "application/octet-stream";
 
@@ -80,7 +82,9 @@ router.post("/summarize-preview", upload.single("file"), async (req, res, next) 
 
     res.json({ ok: true, summary, source });
   } catch (e) {
-    next(e);
+    // next(e);
+    // new
+    return res.json({ ok: false, summary: "", source: "none", error: "summarize-failed"})
   }
 });
 
@@ -117,9 +121,9 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     const date = formDate || randomDateISO();
     const type = "incoming";
 
-    const db = await getDb();
+    const db = await getDocumentDB();
     const bucket = await getBucket();
-    const lcol = letters(db);
+    const lcol = LetterModel(db);
     const ccol = letterChunks(db);
 
     // 3) Ringkas dari FILE (utama), fallback TEKS

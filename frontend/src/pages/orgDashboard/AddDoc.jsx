@@ -1,28 +1,72 @@
 // src/pages/AddDoc.jsx
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { upload, summarizePreview } from "../../Services/api";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { upload, createDocument, summarizePreview, getOrgMembers } from "../../Services/api";
 import Sidebar from "../../components/Sidebar";
 import { ArrowLeft } from "lucide-react";
+import { useUser } from "../../context/UserContext";
 
-const RECIPIENTS = [
-  "UKM Seni Rupa",
-  "Himpunan Mahasiswa SI",
-  "UKM Robotika",
-  "BEM Fakultas",
-];
+// const RECIPIENTS = [
+//   "UKM Seni Rupa",
+//   "Himpunan Mahasiswa SI",
+//   "UKM Robotika",
+//   "BEM Fakultas",
+// ];
 
 export default function AddDoc() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user, loading: userLoading } = useUser();
+
+  //form fields
   const [title, setTitle] = useState("");
-  const [recipient, setRecipient] = useState("");
   const [due, setDue] = useState(""); 
   const [file, setFile] = useState(null);
-
   const [notes, setNotes] = useState(""); 
+  
+  // recipient controls
+  // const [recipient, setRecipient] = useState("");
+  const [recipientsMode, setRecipientsMode] = useState("all");
+  const [selectedRecipients, setSelectedRecipients] = useState([]);
+  const [members, setMembers] = useState([]);
+  
+  // ui state
   const [loadingAI, setLoadingAI] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (userLoading) {
+      return;
+    }
+
+    const fetchMember = async () => {
+      try {
+        const data = await getOrgMembers(id);
+        const meId = String(user?.id || "");
+
+        const list = (data?.members || [])
+          .map((m) => m?.user)
+          .filter(Boolean)
+          .filter((u) => String(u._id) !== meId)
+          .map((u) => ({ 
+            id: String(u._id), 
+            username: u.username, 
+            email: u.email })) || [];
+
+        setMembers(list);
+
+        if (list.length === 0 && recipientsMode === "specific") {
+          setRecipientsMode("all");
+          setSelectedRecipients([]);
+        }
+      } catch (err) {
+        console.error("load members error:", err);
+      }
+    }
+
+    fetchMember();
+  }, [id, user?.id, userLoading]);
 
   const onPickFile = (e) => {
     const f = e.target.files?.[0];
@@ -35,8 +79,18 @@ export default function AddDoc() {
       setLoadingAI(true);
       const fd = new FormData();
       fd.append("file", file);
+      // fd.append("organizationId", id);
       const data = await summarizePreview(fd); 
-      setNotes(data.summary || "");
+      const ok = typeof data?.ok === "boolean" ? data.ok : true;
+      const summary = (data?.summary || "").trim();
+
+      if (ok && summary) {
+        setNotes(summary);
+        // setNotes(data.summary);
+        // setNotes(data.summary || "");
+      } else {
+        alert("Ringkasan tidak tersedia saat ini. Anda tetap bisa submit dokumen.");
+      }
     } catch (e) {
       console.error(e);
       alert("Gagal generate ringkasan.");
@@ -51,8 +105,12 @@ export default function AddDoc() {
 
     if (!title.trim()) return alert("Isi Document Title.");
     if (!file) return alert("Silakan unggah file.");
-    if (!recipient) return alert("Pilih recipient.");
+    // if (!recipient) return alert("Pilih recipient.");
     if (!due) return alert("Isi Due Date.");
+
+    if (recipientsMode === "specific" && selectedRecipients.length === 0) {
+      return alert("Pilih minimal satu member sebagai recipient.");
+    }
 
     try {
       setSubmitting(true);
@@ -61,18 +119,42 @@ export default function AddDoc() {
 
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("subject", title.trim());
-      fd.append("author", recipient);
-      fd.append("date", uploadDate);
-      fd.append("dueDate", due);
-      fd.append("status", "Uploaded");
-      fd.append("comment", "");
-      if (notes?.trim()) fd.append("notes", notes.trim());
+      fd.append("organizationId", id);
+      const uploadRes = await upload(fd);
+      const fileId = uploadRes.fileId;
 
-      await upload(fd);
+      const newDoc = {
+        title: title.trim(),
+        description: notes.trim() || "",
+        organizationId: id,
+        fileId,
+        status: "Uploaded",        
+        dueDate: due,
+        uploadDate,
+        recipientsMode,
+        recipients:
+          recipientsMode === "specific" ? selectedRecipients : []               
+      };
 
-      alert("Dokumen tersimpan!");
-      navigate("/manage-document");
+      await createDocument(newDoc);
+
+      alert("✅ Dokumen berhasil diunggah dan disimpan!");
+      navigate(`/${id}/manage-document`);
+      // ------KODE LAMA-------
+      // fd.append("file", file);
+      // fd.append("subject", title.trim());
+      // fd.append("author", recipient);
+      // fd.append("date", uploadDate);
+      // fd.append("dueDate", due);
+      // fd.append("status", "Uploaded");
+      // fd.append("comment", "");
+      // if (notes?.trim()) fd.append("notes", notes.trim());
+
+      // await upload(fd);
+
+      // alert("Dokumen tersimpan!");
+      // navigate("/manage-document");
+   
     } catch (e2) {
       console.error(e2);
       alert("Gagal submit dokumen.");
@@ -83,7 +165,7 @@ export default function AddDoc() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar activePage="Manage Document" />
+      <Sidebar activePage="Manage Document" orgId={id} />
 
       <div className="ml-64 min-h-screen">
         {/* Topbar */}
@@ -96,7 +178,8 @@ export default function AddDoc() {
         <main className="mx-auto max-w-7xl px-6 py-8">
           {/* Title row */}
           <button
-            onClick={() => navigate(-1)}
+            // onClick={() => navigate(-1)}
+            onClick={() => navigate(`/${id}/manage-document`)}
             className="mb-6 inline-flex items-center gap-2 text-[#23358B] hover:opacity-80"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -124,7 +207,7 @@ export default function AddDoc() {
               />
             </div>
 
-            {/* Dropzone */}
+            {/* Upload File */}
             <div>
               <label className="block text-sm font-semibold text-[#23358B] mb-2">
                 Upload Document
@@ -186,9 +269,79 @@ export default function AddDoc() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div>
                 <label className="block text-sm font-semibold text-[#23358B]">
-                  Recipient
+                  Recipient (can view & set status)
                 </label>
-                <select
+                <div className="mt-2 flex flex-wrap items-center gap-6">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="recMode"
+                      value="all"
+                      checked={recipientsMode === "all"}
+                      onChange={() => {
+                        setRecipientsMode("all");
+                        setSelectedRecipients([]);
+                      }}
+                      disabled={submitting}
+                    />
+                    <span>Everyone (all members)</span>
+                  </label>
+
+                  <label className="inline-flex items-center gap-2">
+                    <input 
+                      type="radio"
+                      name="recMode"
+                      value="specific"
+                      checked={recipientsMode === "specific"}
+                      onChange={() => {
+                        setRecipientsMode("specific");
+                        setSelectedRecipients([]);
+                      }}
+                      disabled={submitting || members.length === 0}
+                      title={
+                        members.length === 0
+                          ? "No members found" : ""
+                      }
+                    />
+                    <span>Specific member(s)</span>
+                  </label>               
+                </div>
+
+                {recipientsMode === "specific" && (
+                  <div className="mt-3 rounded-xl border border-gray-200 p-3">
+                    {members.length === 0 ? (
+                      <div className="text-sm text-gray-500">No members found.</div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {members.map((m) => {
+                          const checked = selectedRecipients.includes(m.id);
+                          return (
+                            <label key={m.id} className="inline-flex items-center gap-2">
+                              <input 
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedRecipients((prev) => [...prev, m.id]);
+                                  } else {
+                                    setSelectedRecipients((prev) => prev.filter((x) => x !== m.id));
+                                  }
+                                }}
+                                disabled={submitting}
+                              />
+                              <span className="text-sm">
+                                {m.username}{" "}
+                                <span className="text-gray-400 text-xs">({m.email})</span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* <select
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
                   disabled={submitting}
@@ -202,9 +355,10 @@ export default function AddDoc() {
                       {r}
                     </option>
                   ))}
-                </select>
+                </select> */}
               </div>
 
+              {/* Due Date */}
               <div>
                 <label className="block text-sm font-semibold text-[#23358B]">
                   Due Date
@@ -224,7 +378,7 @@ export default function AddDoc() {
               <button
                 type="submit"
                 disabled={submitting}
-                aria-disabled={submitting}
+                // aria-disabled={submitting}
                 className={`rounded-xl px-8 py-3 text-white font-semibold transition ${
                   submitting
                     ? "bg-gray-400 cursor-not-allowed"

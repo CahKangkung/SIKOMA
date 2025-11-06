@@ -3,10 +3,12 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
+import { useUser } from "../context/UserContext";
 import { users } from "../data/DummyData";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { refetchUser } = useUser();
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +27,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const res = await fetch("http://localhost:8080/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -37,6 +39,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
+        await refetchUser();
         alert("Login Successful!");
         navigate("/home");
       } else {

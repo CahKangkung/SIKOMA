@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { getDb } from "../services/db.js";
+import { getDocumentDB } from "../services/db.js";
 import { letterChunks } from "../models/letterChunks.js";
 import { embedText, generateAnswer } from "../services/gemini.js";
 import { transcribeAudio } from "../services/transcribe.js";
@@ -15,7 +15,7 @@ router.post("/search", async (req, res, next) => {
   const qvec = await embedText(query);
 
   // 🔹 2. Akses koleksi letterChunks
-  const db = await getDb();
+  const db = await getDocumentDB();
   const ccol = letterChunks(db);
 
   // 🔹 3. Jalankan vektor search (Atlas Search)
@@ -70,7 +70,7 @@ router.post("/search/voice", upload.single("audio"), async (req, res, next) => {
 
     // 2) embed query & vector search
     const qvec = await embedText(query);
-    const db = await getDb();
+    const db = await getDocumentDB();
     const ccol = letterChunks(db);
 
     const cursor = ccol.aggregate([
