@@ -211,15 +211,16 @@ router.post("/", verifyToken, async (req, res) => {
       title: title.trim(),
       description: (description || "").trim(),
       status: status || "Uploaded",
-      fileId: fileId ? asObjId(fileId) : null,
-      organizationId: asObjId(organizationId),
+      fileId: fileId ? new ObjectId(fileId) : null, // new
+      organizationId: asObjId(organizationId), // new
       recipientsMode: recipientsMode === "specific" ? "specific" : "all",
       recipients: recIds,
       dueDate: dueDate || null,
       uploadDate: uploadDate || null,      
       createdBy: asObjId(req.user.id) || String(req.user.id),
       createdAt: new Date(),
-      updatedAt: new Date(),    
+      updatedAt: new Date(),
+      reviews: [] //new    
     };
 
     // const result = await LetterModel.create(newLetter);
@@ -276,19 +277,35 @@ router.get("/:id", verifyToken, async (req, res, next) => {
     }
 
     // join user uploader + recipients
-    const idset = new Set([String(doc.createdBy), ...(doc.recipients || []).map(String)]);
+    const idset = new Set([
+      String(doc.createdBy), 
+      ...(doc.recipients || []).map(String),
+      ...(doc.reviews || []).map((r) => String(r.by)), // new
+    ]);
     const users = await User.find({ _id: { $in: [...idset] } }, "username email").lean();
     const umap = {};
     users.forEach((u) => (umap[String(u._id)] = { id: String(u._id), username: u.username, email: u.email}));
+    
     const payload = {
       ...doc,
       _id: String(doc._id),
+      fileId: doc.fileId ? String(doc.fileId) : null, //new
+      organizationId: String(doc.organizationId), // new
       createdBy: String(doc.createdBy || ""),
       createdByUser: umap[String(doc.createdBy)] || null,
       recipientsMode: doc.recipientsMode || "all",
       recipients: (doc.recipients || []).map((r) => String(r)),
       recipientsUsers: (doc.recipients || []).map((r) => umap[String(r)]).filter(Boolean),
       // aturan: hanya penerima ATAU admin yang boleh set status, dan uploader tidak boleh
+      approvalFileId: doc.approvalFileId ? String(doc.approvalFileId) : null, //new
+      reviews: (doc.reviews || []).map((r) => ({
+        by: String(r.by),
+        byUser: umap[String(r.by)] || null,
+        status: r.status,
+        comment: r.comment || null,
+        fileId: r.fileId ? String(r.fileId) : null,
+        at: r.at
+      })),
       canSetStatus: !isAuthor && (isRecipient || isAdmin),
       isAuthor,
       isRecipient,
@@ -329,24 +346,50 @@ router.put("/:id", verifyToken, async (req, res) => {
 
     const { status, comment, approvalFileId } = req.body;
 
+    // new entry review
+    const review = {
+      by: asObjId(req.user.id) || String(req.user.id),
+      status: status || "On Review",
+      comment: typeof comment === "string" ? comment.trim() : null,
+      fileId: approvalFileId ? asObjId(approvalFileId) : null,
+      at: new Date()
+    };
+
     const set = {
+      status: review.status,
       updatedAt: new Date(),
     };
 
-    if (status) set.status = status;
-    if (typeof comment === "string") set.comment = comment.trim();
-    if (approvalFileId) {
-      const fid = asObjId(approvalFileId);
-      if (!fid) return res.status(400).json({ message: "invalid approvalFileId" });
-      set.approvalFileId = fid;
+    // simpan info terakhir
+    if (review.comment) {
+      set.lastComment = review.comment;      
+    }
+    if (review.fileId) {
+      set.approvalFileId = review.fileId;
     }
 
-    await col.updateOne({ _id: oid }, { $set: set });
+    // if (status) set.status = status;
+    // if (typeof comment === "string") set.comment = comment.trim();
+    // if (approvalFileId) {
+    //   const fid = asObjId(approvalFileId);
+    //   if (!fid) return res.status(400).json({ message: "invalid approvalFileId" });
+    //   set.approvalFileId = fid;
+    // }
+
+    await col.updateOne(
+      { _id: oid },
+      { $set: set, $push: { reviews: review } } 
+      // { $set: set }
+    );
 
     // balas payload seperti GET /:id (dengan flags)
     const refreshed = await col.findOne({ _id: oid });
 
-    const idset = new Set([String(refreshed.createdBy), ...(refreshed.recipients || []).map(String)]);
+    const idset = new Set([
+      String(refreshed.createdBy), 
+      ...(refreshed.recipients || []).map(String),
+      ...(refreshed.reviews || []).map(r => String(r.by))
+    ]);
     const users = await User.find({ _id: { $in: [...idset] } }, "username email").lean();
     const umap = {};
     users.forEach((u) => (umap[String(u._id)] = { id: String(u._id), username: u.username, email: u.email }));
@@ -359,6 +402,15 @@ router.put("/:id", verifyToken, async (req, res) => {
       recipientsMode: refreshed.recipientsMode || "all",
       recipients: (refreshed.recipients || []).map((r) => String(r)),
       recipientsUsers: (refreshed.recipients || []).map((r) => umap[String(r)]).filter(Boolean),
+      approvalFileId: refreshed.approvalFileId ? String(refreshed.approvalFileId) : null,
+      reviews: (refreshed.reviews || []).map((r) => ({
+        by: String(r.by),
+        byUser: umap[String(r.by)] || null,
+        status: r.status,
+        comment: r.comment || null,
+        fileId: r.fileId ? String(r.fileId) : null,
+        at: r.at,
+      })),
       canSetStatus: !isAuthor && (isRecipient || isAdmin),
       isAuthor,
       isRecipient,

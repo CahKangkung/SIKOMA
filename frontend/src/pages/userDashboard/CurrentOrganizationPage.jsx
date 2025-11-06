@@ -19,7 +19,7 @@ export default function CurrentOrganizationsPage() {
 
   // Ambil organisasi yang dimiliki user
   useEffect(() => {
-    if (loading) return; // ⚠️ PENTING!
+    if (loading) return; 
     if (!user) {
       navigate("/login");
       return;

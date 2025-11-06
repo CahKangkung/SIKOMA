@@ -31,7 +31,11 @@ router.post("/upload", verifyToken, upload.single("file"), async (req, res) => {
     });
     
     uploadStream.once("finish", () => {
-      res.json({ message: "✅ File uploaded successfully", fileId: uploadStream.id });
+      res.json({ 
+        message: "✅ File uploaded successfully", 
+        // fileId: uploadStream.id
+        fileId: uploadStream.id.toString() //new
+      });
     });
     uploadStream.once("error", (err) => {
       console.error("Upload stream error: ", err);
@@ -65,18 +69,80 @@ router.get("/:filename", verifyToken, async (req, res) => {
       return res.status(403).json({ message: "File not found or access denied" });
     }
 
+    res.set("Content-Type", file.contentType || "application/octet-stream");
+    res.set("Content-Disposition", `inline; filename="${file.filename}"`); //new
+
     const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
-    req.set("Content-Type", file.contentType || "application/octet-stream");
+    
+    // new
+    downloadStream.on("error", (err) => {
+      console.error("Download stream error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Download failed" });
+      }
+    });
+
     downloadStream.pipe(res);
 
   } catch (err) {
     console.error("Download error:", err);
-    res.status(500).json({ message: "Download failed" });
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Download failed" });
+    }
+    //res.status(500).json({ message: "Download failed" });
   }
 });
 
-// download by fileId (ObjectId) + cek organisasi
 router.get("/id/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { organizationId } = req.query;
+
+    if (!organizationId) {
+      return res.status(400).json({ message: "organizationId is required" });
+    }
+
+    let _id, _orgId;
+    try {
+      _id = new ObjectId(id);
+      _orgId = new ObjectId (organizationId);
+    } catch {
+      return res.status(400).json({ message: "invalid id/organizationId" });
+    }
+
+    const db = getDocumentDB();
+    const file = await db.collection("uploads.files").findOne({
+      _id,
+      "metadata.organizationId": _orgId
+    });
+
+    if (!file) {
+      return res.status(404).json({ message: "File not found or access denied" });
+    }
+
+    res.setHeader("Content-Type", file.contentType || "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`);
+
+    const bucket = getBucket();
+    const stream = bucket.openDownloadStream(_id);
+
+    stream.on("error", (e) => {
+      console.error("Download error:", e); // progress gpt sampai sini
+      res.status(500).end();
+    });
+    stream.pipe(res);
+
+  } catch (err) {
+    console.error("Download by id error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Download failed" });
+    }
+    //res.status(500).json({ message: "Download failed" });
+  }
+})
+
+// download by fileId (ObjectId) + cek organisasi
+/*router.get("/id/:id", verifyToken, async (req, res) => {
   try {
     const db = getDocumentDB();
     const bucket = getBucket();
@@ -105,7 +171,7 @@ router.get("/id/:id", verifyToken, async (req, res) => {
     console.error("Download by id error:", err);
     res.status(500).json({ message: "Download failed" });
   }
-});
+});*/
 
 export default router;
 

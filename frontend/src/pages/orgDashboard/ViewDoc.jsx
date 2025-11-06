@@ -123,8 +123,8 @@ export default function ViewDoc() {
   // const fileUrl = isPdf && attach ? `${apiBase}/files/${attach.fileId}` : null;
   const fileUrl = doc?.fileId 
   // ? `${apiBase}/files/${doc.fileId}` 
-  ? `${apiBase}/files/${doc.fileId}?organizationId=${doc.organizationId}` 
-  : null;
+    ? `${apiBase}/files/${doc.fileId}?organizationId=${doc.organizationId}` 
+    : null;
 
   // Submit: update ke DB, lalu refresh UI dari respons server
   const submitAction = async (e) => {
@@ -279,6 +279,46 @@ export default function ViewDoc() {
                   })()}
                 </div>
               </div>
+
+              {/* Review */}
+              {Array.isArray(doc.reviews) && doc.reviews.length > 0 && (
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-4" style={{ backgroundColor: "#23358B"}}>
+                  <div className="mb-3 font-semibold text-[#23358B]" style={{ color: "white" }}>Latest Decision</div>
+                  {(() => {
+                    const r = doc.reviews[doc.reviews.length - 1];
+                    const at = r.at ? new Date(r.at).toLocaleString("id-ID") : "-";
+                    const attachUrl = r.fileId
+                      ? `${apiBase}/files/id/${r.fileId}?organizationId=${doc.organizationId}`
+                      : null;
+                    return (
+                      <div className="text-sm text-gray-700" style={{ color: "white" }}>
+                        <div><span className="font-medium">By:</span> {r.byUser?.username || "(unknown)"} <span className="text-gray-400">•</span> {at}</div>
+                        <div className="mt-1">
+                          <span className="font-medium">Status:</span> {r.status}
+                        </div>
+                        {r.comment && (
+                          <div className="mt-1 whitespace-pre-line">
+                            <span className="font-medium">Comment:</span> {r.comment}
+                          </div>
+                        )}
+                        {attachUrl && (
+                          <div className="mt-2">
+                            <a
+                              href={attachUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-md bg-[#23358B] px-3 py-1.5 text-white hover:opacity-90"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download Attachment
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* Meta kiri-kanan */}
               <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -446,6 +486,47 @@ export default function ViewDoc() {
                 </div>
               </form>
               )}
+
+              {/* Review
+              {Array.isArray(doc.reviews) && doc.reviews.length > 0 && (
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="mb-3 font-semibold text-[#23358B]">Latest Decision</div>
+                  {(() => {
+                    const r = doc.reviews[doc.reviews.length - 1];
+                    const at = r.at ? new Date(r.at).toLocaleString("id-ID") : "-";
+                    const attachUrl = r.fileId
+                      ? `${apiBase}/files/id/${r.fileId}?organizationId=${doc.organizationId}`
+                      : null;
+                    return (
+                      <div className="text-sm text-gray-700">
+                        <div><span className="font-medium">By:</span> {r.byUser?.username || "(unknown)"} <span className="text-gray-400">•</span> {at}</div>
+                        <div className="mt-1">
+                          <span className="font-medium">Status:</span> {r.status}
+                        </div>
+                        {r.comment && (
+                          <div className="mt-1 whitespace-pre-line">
+                            <span className="font-medium">Comment:</span> {r.comment}
+                          </div>
+                        )}
+                        {attachUrl && (
+                          <div className="mt-2">
+                            <a
+                              href={attachUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-md bg-[#23358B] px-3 py-1.5 text-white hover:opacity-90"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download Attachment
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )} */}
+
             </>
           )}
         </main>

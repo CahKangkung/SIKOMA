@@ -63,7 +63,7 @@ export default function SettingOrganizationPage() {
                 alert(`✅ Organization updated successfully!`);
                 navigate(`/${id}/organization`);
             } else {
-                throw new Error(`Failed to load organization data: ${data.message}`);
+                throw new Error(`Failed to update organization data: ${data.message}`);
             }
 
         } catch (err) {
@@ -97,15 +97,15 @@ export default function SettingOrganizationPage() {
     }
     
     if (loadingData) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="text-lg text-gray-600 mb-2">Loading...</div>
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-white">
+                <div className="text-center">
+                <div className="text-lg text-gray-600 mb-2">Loading...</div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-[#F8FAFC]">
