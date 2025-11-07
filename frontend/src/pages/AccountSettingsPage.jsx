@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, User as UserIcon, Eye, X } from "lucide-react";
 import { getCurrentUser, updateUser, deleteUser } from "../Services/api";
+import { useAuth } from "../auth/AuthContext";
 
 export default function AccountSettingsPage() {
   const navigate = useNavigate();
@@ -41,6 +42,7 @@ export default function AccountSettingsPage() {
     e.preventDefault();
     try {
       const res = await updateUser(form);
+      console.log(res);
       setMessage("✅ Profile updated successfully!");
       setTimeout(() => navigate("/account"), 1500);
     } catch (err) {
@@ -61,7 +63,13 @@ export default function AccountSettingsPage() {
     }
   };
 
-  const onLogout = () => navigate("/login");
+  const { refreshAuth } = useAuth();
+
+  const onLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    await refreshAuth(); // akan mengubah state jadi tidak login
+    navigate("/login", { replace: true });
+  };
 
   // ESC untuk tutup modal
   useEffect(() => {

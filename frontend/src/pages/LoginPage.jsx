@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
+import { useAuth } from "../auth/AuthContext";
 import { loginUser, googleLogin } from "../Services/api"; // ✅ Tambahkan import ini
 
 export default function LoginPage() {
+  const { refreshAuth } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -20,6 +22,7 @@ export default function LoginPage() {
       const res = await loginUser(form); // ✅ panggil API backend login
       console.log(res.user)
       localStorage.setItem("currentUser", JSON.stringify(res.user));
+      await refreshAuth();
       navigate("/home"); // redirect setelah login berhasil
     } catch (error) {
       setError(error.response?.data?.message || "Login failed");
