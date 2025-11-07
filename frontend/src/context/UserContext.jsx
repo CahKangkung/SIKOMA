@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useContext, createContext } from "react";
-import { useNavigate } from "react-router-dom";
 
 const UserContext = createContext();
 
@@ -7,33 +6,40 @@ export function UserProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const res = await fetch("http://localhost:5000/api/auth/me", {
-                    credentials: "include"
-                });
+    const fetchUser = async () => {
+        try {
+            // setLoading(true); // optional
 
-                const data = await res.json();
+            const res = await fetch("http://localhost:8080/api/auth/me", {
+                credentials: "include"
+            });
 
-                if (res.ok) {
-                    setUser(data.user);                
-                }
-            } 
-            catch (err) {
-                console.error(err);
+            const data = await res.json();
+
+            if (res.ok) {
+                setUser(data.user);                
+            } else {
+                setUser(null);
             }
-            finally {
-                setLoading(false);
-            }           
+        } 
+        catch (err) {
+            console.error("Fetch user error: ", err);
         }
+        finally {
+            setLoading(false);
+        }           
+    }
 
+    const clearUser = () => {
+        setUser(null);
+    };
+
+    useEffect(() => {
         fetchUser();
-
     }, []);
 
     return (
-        <UserContext.Provider value={{ user, loading, setUser }}>
+        <UserContext.Provider value={{ user, loading, setUser, clearUser, refetchUser: fetchUser }}>
             {children}
         </UserContext.Provider>
     );    

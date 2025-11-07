@@ -4,9 +4,9 @@ import { Home, FileText, Users, User, ArrowLeftCircle } from "lucide-react";
 import logo from "../assets/logo.png";
 
 export default function Sidebar() {
-  const { id } = useParams();
+  const { id, orgId } = useParams();
   const navigate = useNavigate();
-  const currentOrgId = id;
+  const currentOrgId = id || orgId;
 
   const menu = [
     { name: "Dashboard", icon: Home, path: `/${currentOrgId}/dashboard`, end: true }, // exact

@@ -10,17 +10,23 @@ export default function OrganizationPage() {
   const { user, loading } = useUser();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [org, setOrg] = useState()
+  const [loadingData, setLoadingData] = useState(false);
+  const [org, setOrg] = useState("");
+
+  const userId = user ? (user.id || user._id) : null;
+  const isCreator = user && org && String(userId) === String(org.createdBy?._id);
 
   useEffect(() => {
     const fetchOrg = async () => {
       try {
+        setLoadingData(true);
+
         console.log("🔍 Fetching organization:", id);
         console.log("👤 Current user:", user);
 
         const userId = user.id || user._id;
 
-        const res = await fetch(`http://localhost:5000/api/organization/${id}`, {
+        const res = await fetch(`http://localhost:8080/api/organization/${id}`, {
           credentials: "include"
         });
 
@@ -49,11 +55,13 @@ export default function OrganizationPage() {
       } catch (err) {
         console.error("Error fetching organization data: ", err);
         // navigate("/home/current");
-      }      
+      } finally {
+        setLoadingData(false);
+      }
     }
 
     fetchOrg();
-  }, [id, user, navigate]);
+  }, [id, user, loading, navigate]);
 
 
   // // Ambil user aktif dari localStorage
@@ -89,6 +97,17 @@ export default function OrganizationPage() {
   //   userData.organizations[0];
 
   // const orgDetail = organizations.find((o) => o.id === activeOrg.id);
+
+  if (loading || loadingData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="text-lg text-gray-600 mb-2">Loading...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -126,17 +145,45 @@ export default function OrganizationPage() {
               </p>
             </div>
 
-            {/* Button */}
-            <div className="flex justify-start">
-              <button
-                onClick={() =>
-                  navigate("/organization/settings", { state: { orgDetail } })
-                }
-                className="px-6 py-2 bg-[#133962] text-white rounded-md font-semibold hover:opacity-90 transition"
-              >
-                Settings
-              </button>
+            {/* Author */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-[#23358B] mb-1">
+                Author Organization
+              </h3>
+              <p className="text-gray-700 leading-relaxed text-justify">
+                {org?.createdBy?.username ||
+                  "Unknown"}
+              </p>
             </div>
+
+            {/* Date Created */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-[#23358B] mb-1">
+                Date Created
+              </h3>
+              <p className="text-gray-700 leading-relaxed text-justify">
+                {org?.createdAt ? new Date(org.createdAt).toLocaleDateString("id-ID", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                }) : "Unknown"}
+              </p>
+            </div>
+
+            {/* Button */}
+            { isCreator && (
+              <div className="flex justify-start">
+                <button
+                  onClick={() =>
+                    //navigate(`/${org._id}/organization/settings`, { state: { orgDetail } })
+                    navigate(`/${org._id}/organization/settings`, { state: { organization: org } })
+                  }
+                  className="px-6 py-2 bg-[#133962] text-white rounded-md font-semibold hover:opacity-90 transition"
+                >
+                  Settings
+                </button>
+              </div>
+            )}            
           </div>
         </main>
       </div>

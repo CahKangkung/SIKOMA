@@ -25,7 +25,7 @@ export default function CreateOrganizationPage() {
       setSubmitting(true);
       await new Promise((r) => setTimeout(r, 1000));
 
-      const res = await fetch("http://localhost:5000/api/organization/create", {
+      const res = await fetch("http://localhost:8080/api/organization/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

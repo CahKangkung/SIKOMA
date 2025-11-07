@@ -68,7 +68,7 @@ function Meta({ label, value, alignRight = false }) {
 }
 
 export default function ViewDoc() {
-  const { id } = useParams();
+  const { orgId, docId } = useParams();
   const navigate = useNavigate();
 
   const [doc, setDoc] = useState(null);
@@ -89,36 +89,42 @@ export default function ViewDoc() {
     setLoading(true);
     setErr("");
     try {
-      const d = await getDoc(id);
+      const d = await getDoc(docId);
       setDoc(d);
       const c = canon(d?.status);
       setActionStatus(nextActionFromStatus(c)); // dropdown default dari DB, tapi valid
     } catch (e) {
       console.error(e);
-      setErr(e?.message || "Gagal memuat dokumen");
+      setErr(e?.message || "Failed to load document");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [docId]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   const onDelete = async () => {
-    if (!confirm("Hapus dokumen ini?")) return;
+    if (!confirm("Delete this document?")) return;
     try {
-      await deleteDoc(doc._id || doc.id);
-      navigate("/manage-document");
+      // await deleteDoc(doc._id || doc.id);
+      await deleteDoc(doc._id || doc.id, doc.organizationId);
+      alert("Document successfully deleted.");
+      navigate(`/${doc.organizationId}/manage-document`);
     } catch (e) {
       console.error(e);
-      alert("Gagal menghapus dokumen.");
+      alert("Failed to delete document.");
     }
   };
 
-  const attach = doc?.attachments?.[0];
-  const isPdf = attach?.mime === "application/pdf";
-  const fileUrl = isPdf && attach ? `${apiBase}/files/${attach.fileId}` : null;
+  // const attach = doc?.attachments?.[0];
+  // const isPdf = attach?.mime === "application/pdf";
+  // const fileUrl = isPdf && attach ? `${apiBase}/files/${attach.fileId}` : null;
+  const fileUrl = doc?.fileId 
+  // ? `${apiBase}/files/${doc.fileId}` 
+    ? `${apiBase}/files/${doc.fileId}?organizationId=${doc.organizationId}` 
+    : null;
 
   // Submit: update ke DB, lalu refresh UI dari respons server
   const submitAction = async (e) => {
@@ -136,15 +142,19 @@ export default function ViewDoc() {
       }
 
       if (status === "Approved") {
-        if (!approvalFile) {
-          alert("Saat Approved, wajib unggah dokumen pengganti.");
-          setSaving(false);
-          return;
+        // if (!approvalFile) {
+        //   // alert("Saat Approved, wajib unggah dokumen pengganti.");
+        //   alert("Approved document, need document replacement.");
+        //   setSaving(false);
+        //   return;
+        // }
+        if (approvalFile) {
+          const fd = new FormData();
+          fd.append("file", approvalFile);
+          fd.append("organizationId", doc.organizationId); // new
+          const up = await upload(fd); // server mengembalikan fileId
+          payload.approvalFileId = up?.fileId || up?.id;
         }
-        const fd = new FormData();
-        fd.append("file", approvalFile);
-        const up = await upload(fd); // server mengembalikan fileId
-        payload.approvalFileId = up?.fileId || up?.id;
       }
 
       const updated = await updateDocStatus(doc._id || doc.id, payload);
@@ -161,14 +171,17 @@ export default function ViewDoc() {
       // beri sinyal ke ManageDocs agar reload juga
       localStorage.setItem("needsReloadDocs", "1");
 
-      alert("Status berhasil diperbarui.");
+      alert("Status updated successfully.");
     } catch (e2) {
       console.error(e2);
-      alert("Gagal menyimpan status.");
+      alert("Failed to save status.");
     } finally {
       setSaving(false);
     }
   };
+
+  const canDelete = doc?.isAdmin || doc?.isAuthor;
+  const canSetStatus = doc?.canSetStatus;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -190,16 +203,19 @@ export default function ViewDoc() {
               {/* Header row: back + title + delete */}
               <div className="mb-4 flex items-center justify-between">
                 <button
-                  onClick={() => navigate(-1)}
+                  onClick={() => 
+                    // navigate(-1)
+                    navigate(`/${doc.organizationId || orgId}/manage-document`)
+                  }
                   className="flex items-center gap-2 text-[#23358B] hover:opacity-80"
                 >
                   <ArrowLeft className="h-5 w-5" />
                   <span className="text-lg font-semibold">
-                    {doc.subject || "(tanpa subjek)"}
+                    {doc.title || "(No title)"}
                   </span>
                 </button>
 
-                <button
+                {canDelete && (<button
                   onClick={onDelete}
                   disabled={saving}
                   className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-white ${
@@ -211,6 +227,7 @@ export default function ViewDoc() {
                   <Trash2 className="h-4 w-4" />
                   Delete
                 </button>
+                )}
               </div>
 
               {/* Stepper dengan warna dinamis */}
@@ -263,15 +280,86 @@ export default function ViewDoc() {
                 </div>
               </div>
 
+              {/* Review */}
+              {Array.isArray(doc.reviews) && doc.reviews.length > 0 && (
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-4" style={{ backgroundColor: "#23358B"}}>
+                  <div className="mb-3 font-semibold text-[#23358B]" style={{ color: "white" }}>Latest Decision</div>
+                  {(() => {
+                    const r = doc.reviews[doc.reviews.length - 1];
+                    const at = r.at ? new Date(r.at).toLocaleString("id-ID") : "-";
+                    const attachUrl = r.fileId
+                      ? `${apiBase}/files/id/${r.fileId}?organizationId=${doc.organizationId}`
+                      : null;
+                    return (
+                      <div className="text-sm text-gray-700" style={{ color: "white" }}>
+                        <div><span className="font-medium">By:</span> {r.byUser?.username || "(unknown)"} <span className="text-gray-400">•</span> {at}</div>
+                        <div className="mt-1">
+                          <span className="font-medium">Status:</span> {r.status}
+                        </div>
+                        {r.comment && (
+                          <div className="mt-1 whitespace-pre-line">
+                            <span className="font-medium">Comment:</span> {r.comment}
+                          </div>
+                        )}
+                        {attachUrl && (
+                          <div className="mt-2">
+                            <a
+                              href={attachUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-md bg-[#23358B] px-3 py-1.5 text-white hover:opacity-90"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download Attachment
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* Meta kiri-kanan */}
               <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
-                  <Meta label="Author" value={doc.author} />
-                  <Meta label="Recipient" value={doc.recipient} />
+                  <Meta 
+                    label="Author" 
+                    // value={doc.author}
+                    value={doc.createdByUser?.username || "Unknown"}
+                  />
+                  <Meta 
+                    label="Recipient" 
+                    // value={doc.recipient}
+                    value={
+                      doc.recipientsMode === "all" ? "Everyone" : doc.recipientsUsers
+                        ?.map((r) => r.username)
+                        .join(", ") || "-"
+                    }
+                  />
                 </div>
                 <div>
-                  <Meta label="Upload Date" value={doc.date} alignRight />
-                  <Meta label="Due Date" value={doc.dueDate} alignRight />
+                  {/* <Meta label="Upload Date" value={doc.date} alignRight /> */}
+                  <Meta 
+                    label="Upload Date" 
+                    // value={doc.uploadDate}
+                    value={doc?.uploadDate ? new Date(doc.uploadDate).toLocaleDateString("id-ID", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }) : "Unknown"} 
+                    alignRight 
+                  />
+                  <Meta 
+                    label="Due Date" 
+                    // value={doc.dueDate} 
+                    value={doc?.dueDate ? new Date(doc.dueDate).toLocaleDateString("id-ID", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    }) : "-"}
+                    alignRight 
+                  />
                 </div>
               </div>
 
@@ -279,9 +367,11 @@ export default function ViewDoc() {
               <div className="mt-6">
                 <div className="font-semibold text-[#23358B]">Summary</div>
                 <p className="mt-2 leading-relaxed text-gray-700">
-                  {doc.summary?.trim()
-                    ? doc.summary
-                    : "Ringkasan belum tersedia untuk dokumen ini."}
+                  {/* {doc.summary?.trim() */}
+                    {/* ? doc.summary */}
+                  {doc.description?.trim()
+                    ? doc.description
+                    : "Summary are not available for this document."}
                 </p>
               </div>
 
@@ -289,7 +379,8 @@ export default function ViewDoc() {
               <div className="mt-8">
                 <div className="mb-3 font-semibold text-[#23358B]">Preview</div>
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  {isPdf && fileUrl ? (
+                  {/* {isPdf && fileUrl ? ( */}
+                  {fileUrl ? (
                     <div className="relative">
                       <a
                         href={fileUrl}
@@ -305,14 +396,14 @@ export default function ViewDoc() {
                     </div>
                   ) : (
                     <div className="text-gray-500">
-                      Preview tidak tersedia. {attach ? `(${attach.mime})` : "Tidak ada lampiran."}
+                       Preview is not available. {/* {attach ? `(${attach.mime})` : "Tidak ada lampiran."} */}
                     </div>
                   )}
                 </div>
               </div>
 
               {/* ACTION */}
-              <form
+              {canSetStatus && (<form
                 onSubmit={submitAction}
                 onKeyDown={(e) => {
                   if (saving && e.key === "Enter") e.preventDefault();
@@ -354,7 +445,7 @@ export default function ViewDoc() {
                         />
                         <div className="text-5xl">📥</div>
                         <div className="mt-1 text-sm text-gray-600">
-                          Drag & drop atau klik untuk memilih file
+                          Drag & drop or click to browse file
                         </div>
                       </label>
                       {approvalFile && (
@@ -394,6 +485,48 @@ export default function ViewDoc() {
                   </button>
                 </div>
               </form>
+              )}
+
+              {/* Review
+              {Array.isArray(doc.reviews) && doc.reviews.length > 0 && (
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
+                  <div className="mb-3 font-semibold text-[#23358B]">Latest Decision</div>
+                  {(() => {
+                    const r = doc.reviews[doc.reviews.length - 1];
+                    const at = r.at ? new Date(r.at).toLocaleString("id-ID") : "-";
+                    const attachUrl = r.fileId
+                      ? `${apiBase}/files/id/${r.fileId}?organizationId=${doc.organizationId}`
+                      : null;
+                    return (
+                      <div className="text-sm text-gray-700">
+                        <div><span className="font-medium">By:</span> {r.byUser?.username || "(unknown)"} <span className="text-gray-400">•</span> {at}</div>
+                        <div className="mt-1">
+                          <span className="font-medium">Status:</span> {r.status}
+                        </div>
+                        {r.comment && (
+                          <div className="mt-1 whitespace-pre-line">
+                            <span className="font-medium">Comment:</span> {r.comment}
+                          </div>
+                        )}
+                        {attachUrl && (
+                          <div className="mt-2">
+                            <a
+                              href={attachUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-2 rounded-md bg-[#23358B] px-3 py-1.5 text-white hover:opacity-90"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download Attachment
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )} */}
+
             </>
           )}
         </main>

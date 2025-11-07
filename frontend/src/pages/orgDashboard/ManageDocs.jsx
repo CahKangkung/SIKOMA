@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { listDocs, deleteDoc, search as searchApi } from "../../Services/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/SideBar";
 
-const DUMMY_AUTHORS = ["UKM Seni Rupa", "Himpunan Mahasiswa SI", "UKM Robotika", "BEM Fakultas"];
+// const DUMMY_AUTHORS = ["UKM Seni Rupa", "Himpunan Mahasiswa SI", "UKM Robotika", "BEM Fakultas"];
 
 /* ---------- helpers: status mapping & colors ---------- */
 function prettyStatus(s) {
@@ -21,6 +21,15 @@ function statusClass(s) {
   if (k === "uploaded") return "text-indigo-600";
   return "text-amber-500"; // on review / default
 }
+function toDateStr(v) {
+  if (!v) return "-";
+  // sudah "YYYY-MM-DD"?
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return v
+  }
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? String(v) : d.toISOString().slice(0, 10);
+}
 
 export default function ManageDocs() {
   const [docs, setDocs] = useState([]);
@@ -33,6 +42,8 @@ export default function ManageDocs() {
   const [threshold, setThreshold] = useState(0.75);
   const [topK, setTopK] = useState(8);
 
+  // const { id } = useParams();
+  const { id: orgId } = useParams();
   const navigate = useNavigate();
 
   // STT (opsional)
@@ -59,18 +70,40 @@ export default function ManageDocs() {
   };
 
   const loadDocs = useCallback(async () => {
+    if (!orgId) return;
     setLoadingDocs(true);
     try {
-      const payload = await listDocs({ limit: 500 });
-      const normalized = (payload.items || []).map((d, i) => ({
-        ...d,
-        author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
+      //const payload = await listDocs({ limit: 500 });
+      const data = await listDocs(orgId, { limit: 500 });
+      // const normalized = (payload.items || []).map((d, i) => ({
+      const normalized = (data || []).map((d) => ({
+        id: String(d._id),
+        title: d.title || d.subject || "(untitled)",
+        recipient: d.recipient || "-",
+        createdBy: d.createdByUser?.username || "Unknown",
+        uploadDate: toDateStr(d.uploadDate || d.createdAt),
+        // dueDate: toDateStr(d.dueDate) || "-",
+        status: d.status || "On Review",
+        // ...d,
+        // author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
       }));
       setDocs(normalized);
-      const map = {}; normalized.forEach(d => { map[String(d.id)] = d; });
+
+      // simpan map utk lookup search (docId → metadata asli)
+      const map = {}; 
+      // normalized.forEach(d => { map[String(d.id)] = d; });
+      (data || []).forEach((d) => {
+        map[String(d._id)] = d;
+      });
       setDocMap(map);
-    } finally { setLoadingDocs(false); }
-  }, []);
+    } catch (e) {
+      console.error("listDocs error:", e);
+      setDocs([]);
+      setDocMap([]);
+    } finally { 
+      setLoadingDocs(false); 
+    }
+  }, [orgId]);
 
   useEffect(() => { loadDocs(); }, [loadDocs]);
 
@@ -82,6 +115,7 @@ export default function ManageDocs() {
         loadDocs();
       }
     };
+
     // cek saat kembali ke tab / window fokus
     const onFocus = () => maybeReload();
     const onVis = () => { if (document.visibilityState === "visible") maybeReload(); };
@@ -115,14 +149,17 @@ export default function ManageDocs() {
   const doDelete = async (id) => {
     if (!confirm("Hapus dokumen ini?")) return;
     try {
-      await deleteDoc(id);
+      // await deleteDoc(id);
+      await deleteDoc(id, orgId);
+      await loadDocs();
+      if (q.trim()) runSearch(q);
     } catch (e) {
       console.error(e);
       alert("Gagal menghapus dokumen.");
       return;
     }
-    await loadDocs();
-    if (q.trim()) runSearch(q);
+    // await loadDocs();
+    // if (q.trim()) runSearch(q);
   };
 
   const showingSearch = q.trim().length > 0 && (loadingSearch || hits.length > 0);
@@ -169,7 +206,7 @@ export default function ManageDocs() {
 
             <button
               className="grid h-10 w-10 place-content-center rounded-xl bg-indigo-600 text-white shadow hover:bg-indigo-700"
-              onClick={() => navigate("/manage-document/add")}
+              onClick={() => navigate(`/${orgId}/manage-document/add`)}
               title="Add document"
             >
               +
@@ -194,7 +231,7 @@ export default function ManageDocs() {
                 className="w-24 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
               />
             </div>
-            {showingSearch && <span>hasil: {hits.length}{loadingSearch ? " (loading…)" : ""}</span>}
+            {showingSearch && (<span>hasil: {hits.length}{loadingSearch ? " (loading…)" : ""}</span>)}
           </div>
 
           {/* Table */}
@@ -202,7 +239,7 @@ export default function ManageDocs() {
             <div className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-2 text-sm font-semibold text-gray-500">
               <div>Name</div>
               <div>Author</div>
-              <div>Date</div>
+              <div>Upload Date</div>
               <div>Status</div>
               <div className="text-center">Action</div>
             </div>
@@ -214,32 +251,38 @@ export default function ManageDocs() {
                 <div className="px-3 py-4 text-sm text-gray-500">Searching…</div>
               ) : hits.length ? (
                 hits.map((h, i) => {
-                  const meta = docMap[String(h.docId)] || {};
+                  const key = String(h.docId);
+                  const meta = docMap[key] || {};
                   const displayStatus = prettyStatus(meta.status);
                   return (
                     <div key={i} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-start px-3 py-3 text-sm">
                       <div>
-                        <div className="font-semibold text-gray-800">{meta.subject || `(Doc ${String(h.docId).slice(-6)})`}</div>
+                        <div className="font-semibold text-gray-800">
+                          {meta.title || meta.subject || `(Doc ${key.slice(-6)})`}
+                        </div>
                         <div className="text-xs text-gray-500">
-                          Score: {typeof h.score === "number" ? h.score.toFixed(3) : h.score} • Hal {h.page}
+                          Score: {" "} 
+                          {typeof h.score === "number" ? h.score.toFixed(3) : h.score}{" "} • Hal {h.page}
                         </div>
                         <div className="mt-1 line-clamp-2 text-xs text-gray-500">{h.text || ""}</div>
                       </div>
                       <div className="text-gray-700">{meta.author || "—"}</div>
-                      <div className="text-gray-700">{meta.date || "—"}</div>
+                      {/* <div className="text-gray-700">{meta.date || "—"}</div>                      */}
+                      <div className="text-gray-700">{toDateStr(meta.uploadDate || meta.createdAt)}</div>
                       <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                       <div className="flex items-center justify-center gap-2">
                         <button
                           className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
                           title="View"
-                          onClick={() => navigate(`/manage-document/${meta.id || h.docId}`)}
+                          // onClick={() => navigate(`/${orgId}/manage-document/${meta.id || h.docId}`)}
+                          onClick={() => navigate(`/${orgId}/manage-document/${key}`)}
                         >
                           👁️
                         </button>
                         <button
                           className="rounded-full border border-rose-200 px-2.5 py-1 text-rose-600 hover:bg-rose-50"
                           title="Delete"
-                          onClick={() => doDelete(meta.id || h.docId)}
+                          onClick={() => doDelete(key)}
                         >
                           🗑️
                         </button>
@@ -249,7 +292,7 @@ export default function ManageDocs() {
                   );
                 })
               ) : (
-                <div className="px-3 py-4 text-sm text-gray-500">Tidak ada hasil ≥ {threshold}.</div>
+                <div className="px-3 py-4 text-sm text-gray-500">No Result ≥ {threshold}.</div>
               )
             ) : // List mode
             loadingDocs ? (
@@ -259,15 +302,18 @@ export default function ManageDocs() {
                 const displayStatus = prettyStatus(d.status);
                 return (
                   <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">
-                    <div className="text-gray-800">{d.subject || "(tanpa subjek)"}</div>
-                    <div className="text-gray-700">{d.author}</div>
-                    <div className="text-gray-700">{d.date}</div>
+                    {/* <div className="text-gray-800">{d.subject || "(tanpa subjek)"}</div> */}
+                    <div className="text-gray-800">{d.title || "(tanpa subjek)"}</div>
+                    <div className="text-gray-700">{d.createdBy}</div>
+                    {/* <div className="text-gray-700">{d.date}</div> */}
+                    <div className="text-gray-700">{d.uploadDate}</div>
+                    {/* <div className="text-gray-700">{d.dueDate}</div> */}
                     <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                     <div className="flex items-center justify-center gap-2">
                       <button
                         className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
                         title="View"
-                        onClick={() => navigate(`/manage-document/${d.id}`)}
+                        onClick={() => navigate(`/${orgId}/manage-document/${d.id}`)}
                       >
                         👁️
                       </button>

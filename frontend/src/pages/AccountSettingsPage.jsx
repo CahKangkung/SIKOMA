@@ -1,15 +1,18 @@
 // src/components/SettingsPage.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "../context/UserContext";
 import { ArrowLeft, User as UserIcon, Eye, X } from "lucide-react";
 
 export default function AccountSettingsPage() {
   const navigate = useNavigate();
+  const [message, setMessage] = useState(""); 
+  const { user, loading, refetchUser, clearUser } = useUser();
 
   const [form, setForm] = useState({
-    username: "Unit Kegiatan Mahasiswa Kaligrafi",
-    email: "Ukaligrafi@gmail.com",
-    password: "Ukali.j4ya123",
+    username: user?.username || "",
+    email: user?.email || "",
+    password: "",
   });
 
   // show-on-press untuk password
@@ -19,21 +22,109 @@ export default function AccountSettingsPage() {
   const [openDelete, setOpenDelete] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
-  const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      return navigate("/login");
+    }
+  }, [user, loading, navigate]);
 
-  const onSave = (e) => {
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage("");
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  };
+    
+  // const onSave = (e) => {
+  //   e.preventDefault();
+  //   // TODO: panggil API update profile
+  //   navigate("/dashboard");
+  // };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: panggil API update profile
-    navigate("/dashboard");
+
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/update", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify(form)
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage("✅ Profile updated successfully!")
+        // alert(`✅ Profile updated successfully!`);
+        await refetchUser();
+        // navigate("/settings");
+      } else {
+        //throw new Error(`Failed to update profile: ${data.message}`);
+        setMessage("❌ Failed to update profile");
+      }
+    } catch (err) {      
+      console.error("Error updating profile:", err);
+      setMessage("❌ Error updating profile")
+      // alert("❌ Failed to update profile");
+    }
+  }
+
+  // const onLogout = () => navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8080/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      clearUser();
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout Error: ", err);
+    }
   };
 
-  const onLogout = () => navigate("/login");
+  // const onDeleteConfirm = () => {
+  //   // TODO: panggil API delete account
+  //   navigate("/login");
+  // };
 
-  const onDeleteConfirm = () => {
-    // TODO: panggil API delete account
-    navigate("/login");
-  };
+  const handleDelete = async () => {
+    if (confirmText.trim().toLowerCase() !== "confirm") return;
+
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/delete", {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      const data = await res.json();
+
+      if(res.ok) {
+        alert("🗑️ Account deleted successfully!");
+        clearUser();
+        navigate("/login");
+      } else {
+        throw new Error(`Failed to delete account: ${data.message}`);
+      }
+
+    } catch (err) {
+      console.error("Error deleting account:", err);
+      alert("❌ Failed to delete account");
+    }
+  }
 
   // ESC to close modal
   useEffect(() => {
@@ -44,27 +135,50 @@ export default function AccountSettingsPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [openDelete]);
 
+  if (loading) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-white">
+              <div className="text-center">
+              <div className="text-lg text-gray-600 mb-2">Loading...</div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
+              </div>
+          </div>
+      );
+  }
+
   return (
     <section className="min-h-screen bg-white flex flex-col">
       {/* Header */}
       <header className="flex justify-between items-center px-10 py-6 border-b">
         <button
           onClick={() => navigate(-1)}
+          // onClick={() => navigate("/account")}
           className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
         >
           <ArrowLeft className="h-5 w-5" />
           <span>Settings</span>
-        </button>
+        </button>        
 
         <div className="flex items-center gap-2 text-[#23358B]">
-          <span>User</span>
+          <span>{user?.username || "User"}</span>
           <UserIcon className="w-6 h-6" />
         </div>
       </header>
 
       {/* Content */}
       <main className="px-10 md:px-32 py-10">
-        <form onSubmit={onSave} className="max-w-2xl">
+        {message && (
+          <div className={`p-4 rounded-md ${message.includes("❌") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`} style={{ marginBottom: "15px" }}>
+            {message}
+            <button 
+              onClick={() => setMessage("")}
+              className="ml-4"              
+            >
+              X
+            </button>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="max-w-2xl">
           {/* Username */}
           <label className="block text-[#23358B] font-semibold">Username</label>
           <input
@@ -85,7 +199,7 @@ export default function AccountSettingsPage() {
           />
 
           {/* Password (hold to reveal) */}
-          <label className="block mt-6 text-[#23358B] font-semibold">Password</label>
+          <label className="block mt-6 text-[#23358B] font-semibold">Password <p style={{ fontSize: "12px"}}>(leave blank to keep current)</p></label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -94,7 +208,7 @@ export default function AccountSettingsPage() {
               onChange={handleChange}
               className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-[#23358B]/30"
             />
-            <button
+            {/* <button
               type="button"
               onMouseDown={() => setShowPassword(true)}
               onMouseUp={() => setShowPassword(false)}
@@ -105,7 +219,7 @@ export default function AccountSettingsPage() {
               aria-label="Hold to show password"
             >
               <Eye className="h-5 w-5" />
-            </button>
+            </button> */}
           </div>
 
           {/* Save */}
@@ -130,7 +244,7 @@ export default function AccountSettingsPage() {
             </button>
             <button
               type="button"
-              onClick={onLogout}
+              onClick={handleLogout}
               className="rounded-xl bg-neutral-500 py-3 text-white font-semibold hover:opacity-90 transition"
             >
               Logout
@@ -188,7 +302,7 @@ export default function AccountSettingsPage() {
                 Cancel
               </button>
               <button
-                onClick={onDeleteConfirm}
+                onClick={handleDelete}
                 disabled={confirmText.trim().toLowerCase() !== "confirm"}
                 className={`rounded-lg py-3 font-semibold text-white transition
                   ${

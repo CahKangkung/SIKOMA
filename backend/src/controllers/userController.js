@@ -59,7 +59,8 @@ export const login = async (req, res) => {
 
     res.status(200).json({
       message: "Login successful",
-      user: { id: user._id, username: user.username, email: user.email },
+      // user: { id: user._id, username: user.username, email: user.email }, // lama
+      user: { id: user._id.toString(), _id: user._id, username: user.username, email: user.email },
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -80,7 +81,18 @@ export const getMe = async (req, res) => {
     if (!user)
       return res.status(404).json({ message: "User not found" });
 
-    res.status(200).json({ user });
+    // res.status(200).json({ user }); //lama
+    res.status(200).json({ 
+      user: {
+        id: user._id.toString(), // ✅ Tambah field "id"
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        googleId: user.googleId,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
@@ -162,8 +174,8 @@ export const forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "User with that email not found" });
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-    // const resetTokenExpire = Date.now() + 3600000; // 1 jam
-    const resetTokenExpire = Date.now() + 10000000; // 1 jam
+    const resetTokenExpire = Date.now() + 3600000; // 1 jam
+    // const resetTokenExpire = Date.now() + 10000000; // 1 jam
 
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = resetTokenExpire;

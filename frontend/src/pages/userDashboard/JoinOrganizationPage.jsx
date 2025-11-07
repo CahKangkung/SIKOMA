@@ -12,11 +12,13 @@ export default function JoinOrganizationPage() {
   const [orgs, setOrgs] = useState([]);
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [submited, setSubmited] = useState(false);
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
 
   useEffect(() => {
     const fetchAvailableOrgs = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/organization/available", {
+        setLoadingOrgs(true);
+        const res = await fetch("http://localhost:8080/api/organization/available", {
           credentials: "include"
         });
 
@@ -29,6 +31,8 @@ export default function JoinOrganizationPage() {
         }
       } catch (err) {
         console.error("Error fetching organizations: ", err);
+      } finally {
+        setLoadingOrgs(false);
       }
     }
 
@@ -40,7 +44,7 @@ export default function JoinOrganizationPage() {
 
     try {
       setSubmited(true);
-      const res = await fetch(`http://localhost:5000/api/organization/${selectedOrg._id}/join`, {
+      const res = await fetch(`http://localhost:8080/api/organization/${selectedOrg._id}/join`, {
         method: "POST",
         credentials: "include"
       });
@@ -81,6 +85,18 @@ export default function JoinOrganizationPage() {
   //   alert(`Request to join "${selectedOrg.name}" sent successfully!`);
   //   navigate("/home/current?tab=pending");
   // };
+
+  // ✅ Loading state
+  if (loading || loadingOrgs) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="text-lg text-gray-600 mb-2">Loading...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="min-h-screen bg-gray-50 flex flex-col">

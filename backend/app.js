@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser"; 
 import mongoose from 'mongoose';
 import { MongoClient } from "mongodb";
+import { connectDB } from "./src/services/db.js";
 
 dotenv.config();
 
@@ -39,8 +40,8 @@ app.use("/api/auth", userRoutes);
 app.use("/api/organization", authMiddleware, organizationRoutes);
 app.use("/api", ingestRoutes);
 app.use("/api", searchRoutes);
-app.use("/api", docsRoutes);
-app.use("/api", filesRoutes);
+app.use("/api/docs", docsRoutes);
+app.use("/api/files", filesRoutes);
 
 // error handler 
 app.use((err, _req, res, _next) => {
@@ -53,7 +54,24 @@ const MONGO_URI_USER = process.env.MONGODB_URI_USER; // untuk user model
 const MONGO_URI_LETTERS = process.env.MONGODB_URI; // untuk letter chunks
 // const DB_NAME = process.env.DB_NAME || "letter-chunks"
 
-const connectDBB = async () => {
+async function start() {
+    try {
+        await mongoose.connect(process.env.MONGODB_URI_USER);
+        await connectDB();
+        console.log("All DB connections are ready");
+        app.listen(process.env.PORT, () => {
+            console.log(`Server running on : ${process.env.PORT}`);
+        })
+    } catch (err) {
+        console.error("Database connection error:", err.message);
+        process.exit(1);
+    }
+};
+
+start();
+
+// --------------KODE LAMA------------------
+/*const connectDBB = async () => {
     try {
         // connect mongoose (untuk autentikasi & user.js)
         await mongoose.connect(MONGO_URI_USER);
@@ -79,5 +97,5 @@ connectDBB();
 
 app.listen(process.env.PORT, () => {
     console.log(`Server running on : ${process.env.PORT}`);
-});
+});*/
 
