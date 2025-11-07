@@ -4,10 +4,11 @@ import Header from "../../components/Header";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
+import { getOrgStats } from "../../Services/api";
 
 export default function DashboardPage() {
   const { id } = useParams();
-  const { user, loading }= useUser();
+  const { user, loading, currentOrgId  }= useUser();
   const [org, setOrg] = useState(null);
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
@@ -15,11 +16,20 @@ export default function DashboardPage() {
 
   const userId = user ? (user.id || user._id) : null;
 
+  const [stats, setStats] = useState({
+    uploaded: 0,
+    onReview: 0,
+    approved: 0,
+    rejected: 0,
+  });
+
   useEffect(() => {
+    if (!id || !userId) return;
     const fetchOrg = async () => {
       
       try {
         setLoadingPage(true);
+
         console.log("🔍 Fetching organization:", id);
         console.log("👤 Current user:", user);
 
@@ -62,6 +72,24 @@ export default function DashboardPage() {
     fetchOrg();
     
   }, [id, user, navigate]);
+
+  useEffect(() => {
+    if (!id || !userId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getOrgStats(id);
+        if (!cancelled) setStats(data.stats || {});
+      } catch (e) {
+        if (!cancelled) console.error("Failed to fetch stats:", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, userId]);
 
   if (loading || loadingPage) {
     return (
@@ -107,10 +135,10 @@ export default function DashboardPage() {
           
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card title="Uploaded" value="50" color="bg-blue-100" text="text-blue-700" />
-            <Card title="On Review" value="30" color="bg-yellow-100" text="text-yellow-700" />
-            <Card title="Approved" value="20" color="bg-green-100" text="text-green-700" />
-            <Card title="Rejected" value="10" color="bg-red-100" text="text-red-700" />
+            <Card title="Uploaded" value={stats.uploaded ?? 0} color="bg-blue-100" text="text-blue-700" />
+            <Card title="On Review" value={stats.onReview ?? 0} color="bg-yellow-100" text="text-yellow-700" />
+            <Card title="Approved" value={stats.approved ?? 0} color="bg-green-100" text="text-green-700" />
+            <Card title="Rejected" value={stats.rejected ?? 0} color="bg-red-100" text="text-red-700" />
           </div>
         </main>
       </div>

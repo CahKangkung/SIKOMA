@@ -99,3 +99,6 @@ export const getOrgMembers = async (orgId) => {
   const res = await api.get(`/organization/${orgId}/members`);
   return res.data;
 }
+
+export const getOrgStats = (orgId) =>
+  api.get(`/organization/${orgId}/stats`).then((r) => r.data);
