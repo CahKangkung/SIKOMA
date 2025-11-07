@@ -1,4 +1,4 @@
-// src/pages/JoinOrganizationPage.jsx
+// src/pages/userDashboard/JoinOrganizationPage.jsx 
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, X } from "lucide-react";
 import { useState, useEffect } from "react";

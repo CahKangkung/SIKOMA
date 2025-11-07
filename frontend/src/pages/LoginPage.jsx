@@ -62,12 +62,8 @@ export default function LoginPage() {
 
       if (res.ok) {
         await refetchUser();
-        showNotification(
-          "success",
-          "Login Successful!",
-          "Welcome back! Redirecting to home...",
-          () => navigate("/home")
-        );
+         navigate("/home", { replace: true }); // ⬅️ langsung pindah ke Home, tanpa pop-up
+         return;
       } else {
         throw new Error(data.message || "Login failed");
         // throw new Error(`Login Failed: ${data.message}`);

@@ -1,4 +1,4 @@
-// src/components/ForgotPasswordSuccess.jsx
+// src/pages/ForgotPasswordSuccess.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import wave from "../assets/background-forgotpass.png";

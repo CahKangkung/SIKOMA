@@ -1,4 +1,4 @@
-// src/components/SettingsPage.jsx
+// src/pages/SettingsPage.jsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";

@@ -1,3 +1,4 @@
+// src/pages/AccountDetailPage.jsx
 import React, { useEffect } from "react";
 import { useUser } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
@@ -39,14 +40,14 @@ export default function AccountDetailPage() {
           <div className="space-y-6 text-[16px]">            
             <div>
               <h2 className="text-[#23358B] font-semibold" style={{ fontSize: "20px"}}>Username</h2>
-              <p className="text-neutral-800 mt-1" style={{ fontSize: "30px" }}>
+              <p className="text-neutral-800 mt-1" style={{ fontSize: "20px" }}>
                 {user?.username || "Loading..."}
               </p>
             </div>
 
             <div>
               <h2 className="text-[#23358B] font-semibold" style={{ fontSize: "20px"}}>Email</h2>
-              <p className="text-neutral-800 mt-1" style={{ fontSize: "30px" }}>
+              <p className="text-neutral-800 mt-1" style={{ fontSize: "20px" }}>
                 {user?.email || "Loading..."}
               </p>
             </div>
