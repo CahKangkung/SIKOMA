@@ -16,7 +16,7 @@ export default function AccountSettingsPage() {
   });
 
   // show-on-press untuk password
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword] = useState(false);
 
   // modal state
   const [openDelete, setOpenDelete] = useState(false);
@@ -62,8 +62,6 @@ export default function AccountSettingsPage() {
         credentials: "include",
         body: JSON.stringify(form)
       });
-
-      const data = await res.json();
 
       if (res.ok) {
         setMessage("✅ Profile updated successfully!")

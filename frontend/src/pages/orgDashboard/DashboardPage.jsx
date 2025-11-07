@@ -8,10 +8,9 @@ import { getOrgStats } from "../../Services/api";
 
 export default function DashboardPage() {
   const { id } = useParams();
-  const { user, loading, currentOrgId  }= useUser();
+  const { user, loading  }= useUser();
   const [org, setOrg] = useState(null);
   const navigate = useNavigate();
-  const [message, setMessage] = useState("");
   const [loadingPage, setLoadingPage] = useState(false);
 
   const userId = user ? (user.id || user._id) : null;
@@ -70,7 +69,7 @@ export default function DashboardPage() {
     };
 
     fetchOrg();
-    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user, navigate]);
 
   useEffect(() => {

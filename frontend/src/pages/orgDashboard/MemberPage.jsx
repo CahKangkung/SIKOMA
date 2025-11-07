@@ -3,13 +3,11 @@ import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 import { useUser } from "../../context/UserContext";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { Search, ShieldCheck, Trash2, Check, X } from "lucide-react";
-import { users, organizations, joinRequests } from "../../data/DummyData";
 
 export default function MemberPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user, loading } = useUser();
   const [org, setOrg] = useState("");
   const [member, setMember] = useState([]);
@@ -93,6 +91,7 @@ export default function MemberPage() {
   useEffect(() => {
     if (loading || !user) return;
     fetchMember();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user, loading]);
 
   const approveUser = async (userIdRequest) => {
@@ -111,6 +110,7 @@ export default function MemberPage() {
           setMessage("❌ " + (data.error || "Failed to approve user"));
       }
     } catch (err) {
+      console.error(err);
       setMessage("❌ Error approving user");
     }      
   };
@@ -131,6 +131,7 @@ export default function MemberPage() {
           setMessage("❌ " + (data.error || "Failed to reject user"));
       }
     } catch (err) {
+      console.error(err);
       setMessage("❌ Error rejecting user");
     }        
   };
@@ -158,6 +159,7 @@ export default function MemberPage() {
               setMessage(`❌ Failed to remove member: ${data.error}`);
           }
       } catch (err) {
+          console.error(err);
           setMessage(`❌ Error removing member`);
       }
   };

@@ -4,7 +4,6 @@ import { useNavigate, Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
 import { useUser } from "../context/UserContext";
-import { users } from "../data/DummyData";
 
 export default function LoginPage() {
   const navigate = useNavigate();
