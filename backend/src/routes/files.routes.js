@@ -31,10 +31,11 @@ router.post("/upload", verifyToken, upload.single("file"), async (req, res) => {
     });
     
     uploadStream.once("finish", () => {
+      console.log("✅ File uploaded:", uploadStream.id); // post commit 3
       res.json({ 
         message: "✅ File uploaded successfully", 
         // fileId: uploadStream.id
-        fileId: uploadStream.id.toString() //new
+        fileId: uploadStream.id.toString() 
       });
     });
     uploadStream.once("error", (err) => {
@@ -69,12 +70,15 @@ router.get("/:filename", verifyToken, async (req, res) => {
       return res.status(403).json({ message: "File not found or access denied" });
     }
 
-    res.set("Content-Type", file.contentType || "application/octet-stream");
-    res.set("Content-Disposition", `inline; filename="${file.filename}"`); //new
+    // res.set("Content-Type", file.contentType || "application/octet-stream");
+    // res.set("Content-Disposition", `inline; filename="${file.filename}"`);
+
+    // post commit 3
+    res.setHeader("Content-Type", file.contentType || "application/octet-stream");
+    res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`);
 
     const downloadStream = bucket.openDownloadStreamByName(req.params.filename);
-    
-    // new
+
     downloadStream.on("error", (err) => {
       console.error("Download stream error:", err);
       if (!res.headersSent) {
@@ -119,6 +123,12 @@ router.get("/id/:id", verifyToken, async (req, res) => {
     if (!file) {
       return res.status(404).json({ message: "File not found or access denied" });
     }
+
+    console.log("📥 Downloading file by ID:", {
+      fileId: file._id,
+      filename: file.filename,
+      contentType: file.contentType,
+    }); // post commit 3
 
     res.setHeader("Content-Type", file.contentType || "application/octet-stream");
     res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`);

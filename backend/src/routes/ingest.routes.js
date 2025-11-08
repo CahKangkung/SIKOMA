@@ -4,6 +4,7 @@ import { getDocumentDB, getBucket } from "../services/db.js";
 // import { letters } from "../models/letters.js";
 import { LetterModel } from "../models/letters.js";
 import { letterChunks } from "../models/letterChunks.js";
+import { ObjectId } from "mongodb"; // post commit 3
 import { parseDocx } from "../services/parse.js";
 import { ocrBuffer } from "../services/ocr.js";
 import { chunkText } from "../services/chunker.js";
@@ -15,6 +16,15 @@ import {
 
 const upload = multer(); // field name HARUS "file"
 const router = Router();
+
+// post commit 3
+const asObjId = (x) => {
+  try {
+    return new ObjectId(String(x));
+  } catch {
+    return null;
+  }
+}; // batas post commit 3
 
 /** Ambil nama file tanpa ekstensi */
 function baseName(filename = "") {
@@ -91,6 +101,17 @@ router.post("/summarize-preview", upload.single("file"), async (req, res, next) 
 /* ============================ UPLOAD & SIMPAN ============================ */
 router.post("/upload", upload.single("file"), async (req, res, next) => {
   try {
+    // post commit 3
+    const { organizationId } = req.body;
+    if (!organizationId) {
+      return res.status(400).json({error: "organizationId required"});
+    }
+
+    const orgObId = asObjId(organizationId);
+    if (!orgObId) {
+      return res.status(400).json({error: "Invalid organizationId"});
+    } // batas post commit 3
+
     if (!req.file) {
       console.warn("Upload tanpa file atau fieldName salah (harus 'file').");
       return res.status(400).json({ error: "file required" });
@@ -162,6 +183,7 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
       status: formStatus || "On Review",
       summary: summary || "",
       attachments: [attachment],
+      organizationId: orgObId, // post commit 3
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -173,6 +195,7 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
       const emb = await embedText(parts[i]);
       await ccol.insertOne({
         docId: insertedId,
+        organizationId: orgObId, // post commit 3
         page: i + 1,
         section: "body",
         text: parts[i],

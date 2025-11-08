@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import { ObjectId } from "mongodb"; // post commit 3
 import { getDocumentDB } from "../services/db.js";
 import { letterChunks } from "../models/letterChunks.js";
 import { embedText, generateAnswer } from "../services/gemini.js";
@@ -9,7 +10,8 @@ const router = Router();
 const upload = multer();
 
 router.post("/search", async (req, res, next) => {
-  const { query, topK = 8, withAnswer = false, threshold = 0.75 } = req.body;
+  // const { query, topK = 8, withAnswer = false, threshold = 0.75 } = req.body;
+  const { query, topK = 8, withAnswer = false, threshold = 0.75, organizationId } = req.body; // post commit 3
 
   // 🔹 1. Buat embedding dari teks query
   const qvec = await embedText(query);
@@ -17,6 +19,8 @@ router.post("/search", async (req, res, next) => {
   // 🔹 2. Akses koleksi letterChunks
   const db = await getDocumentDB();
   const ccol = letterChunks(db);
+
+  const matchStage = organizationId ? { organizationId: new ObjectId(organizationId) } : {}; // post commit 3
 
   // 🔹 3. Jalankan vektor search (Atlas Search)
   const cursor = ccol.aggregate([
@@ -26,7 +30,8 @@ router.post("/search", async (req, res, next) => {
         path: "embedding",
         queryVector: qvec,
         numCandidates: Math.max(40, topK * 6),
-        limit: Math.max(20, topK * 2)
+        limit: Math.max(20, topK * 2),
+        filter: matchStage // post commit 3
       }
     },
     { $project: { text: 1, docId: 1, page: 1, score: { $meta: "vectorSearchScore" } } },
