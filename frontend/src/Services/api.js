@@ -69,10 +69,21 @@ export const upload = async (formData) => {
 // 🧠 AI / Search endpoints
 // ----------------------
 
-export const search = async (payload) => {
-  const res = await api.post("/search", payload);
-  return res.data;
-};
+// export const search = async (payload) => {
+//   const res = await api.post("/search", payload);
+//   return res.data;
+// };
+
+export async function search({ orgId, query, topK = 8, threshold = 0.75, withAnswer = false }) {
+  const res = await fetch("http://localhost:8080/api/search", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orgId, query, topK, threshold, withAnswer }),
+  });
+  if (!res.ok) throw new Error(`search failed: ${res.status}`);
+  return await res.json();
+}
 
 export const summarizePreview = async (formData) => {
   const res = await api.post("/summarize-preview", formData);

@@ -66,6 +66,7 @@ export default function AddDoc() {
     }
 
     fetchMember();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user?.id, userLoading]);
 
   const onPickFile = (e) => {

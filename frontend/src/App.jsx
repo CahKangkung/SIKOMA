@@ -53,7 +53,9 @@ export default function App() {
         <Route path="/:id/organization" element={<OrganizationPage />} />
         <Route path="/:id/organization/settings" element={<SettingOrganizationPage />} />
         <Route path="/account" element={<AccountDetailPage />} />
+        <Route path="/:id/account" element={<AccountDetailPage />} />
         <Route path="/settings" element={<AccountSettingsPage />} />
+        <Route path="/:id/settings" element={<AccountSettingsPage />} />
         <Route path="/:id/manage-document" element={<ManageDocs />} />
         <Route path="/viewdoc" element={<ViewDoc />} />
         <Route path="/:orgId/manage-document/:docId" element={<ViewDoc />} />

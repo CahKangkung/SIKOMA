@@ -8,6 +8,7 @@ import { getOrgStats } from "../../Services/api";
 
 export default function DashboardPage() {
   const { id } = useParams();
+  const { setCurrentOrgId } = useUser();
   const { user, loading  }= useUser();
   const [org, setOrg] = useState(null);
   const navigate = useNavigate();
@@ -89,6 +90,10 @@ export default function DashboardPage() {
       cancelled = true;
     };
   }, [id, userId]);
+
+  useEffect(() => {
+    if (id) setCurrentOrgId(id);
+  }, [id, setCurrentOrgId]);
 
   if (loading || loadingPage) {
     return (

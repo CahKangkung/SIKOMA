@@ -73,6 +73,11 @@ export function UserProvider({ children }) {
         }
     }, [user, currentOrgId]);
 
+    useEffect(() => {
+        if (currentOrgId) localStorage.setItem("currentOrgId", currentOrgId);
+        else localStorage.removeItem("currentOrgId");
+    }, [currentOrgId]);
+
     return (
         <UserContext.Provider value={{ 
             user, 
