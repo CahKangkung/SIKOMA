@@ -1,4 +1,4 @@
-import { getDocumentDB } from "../services/db.js";
+/*import { getDocumentDB } from "../services/db.js";
 
 
 export function letterChunks(db) {
@@ -15,7 +15,7 @@ export async function insertChunk(chunk, db) {
 export async function findAllChunks(limit = 50, db) {
     const col = letterChunks(db);
     return await col.find({}).limit(limit).toArray();
-}
+}*/
 
 
 /* export const letterChunks = {
@@ -25,8 +25,8 @@ export async function findAllChunks(limit = 50, db) {
     },
 }; */
 
-
+// post commit 3
 // ------------KODE LAMA----------------
-// export function letterChunks(db) {
-//     return db.collection("letter_chunks");
-// }
+export function letterChunks(db) {
+    return db.collection("letter_chunks");
+}

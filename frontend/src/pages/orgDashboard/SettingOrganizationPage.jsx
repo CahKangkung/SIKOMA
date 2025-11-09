@@ -88,7 +88,10 @@ export default function SettingOrganizationPage() {
                 alert(`❌ Organization "${data.name}" deleted successfully.`);
                 navigate("/home");
             } else {
-                throw new Error(`Failed to delete organization: ${data.message}`);
+                const errorMsg = data.error || data.message || "Failed to delete organization";                
+                alert(`❌ ${errorMsg}`);
+                console.error("Delete failed:", data);
+                setShowConfirm(false);
             }
         } catch (err) {
             console.error("Error deleting organization:", err);

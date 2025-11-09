@@ -5,22 +5,23 @@ import { useUser } from "../context/UserContext";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import { ArrowLeft, User as UserIcon, Eye, X } from "lucide-react";
+import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
 
 export default function AccountSettingsPage() {
   const navigate = useNavigate();
-  const { id: orgId } = useParams();                   // ✅ hanya dari URL
-  const inDashboard = !!orgId;                         // ✅ sidebar hanya jika ada :id
-
+  const { id: orgId } = useParams(); // hanya dari URL
+  const inDashboard = !!orgId; // sidebar hanya jika ada :id
   const { user, loading, refetchUser, clearUser } = useUser();
 
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(""); 
   const [form, setForm] = useState({
     username: user?.username || "",
     email: user?.email || "",
     password: "",
   });
 
-  // show-on-press utk password (opsional)
+  // show-on-press untuk password
   const [showPassword] = useState(false);
 
   // modal delete
@@ -52,7 +53,7 @@ export default function AccountSettingsPage() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
-  };
+  };    
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,15 +64,16 @@ export default function AccountSettingsPage() {
         credentials: "include",
         body: JSON.stringify(form),
       });
+      
       if (res.ok) {
-        setMessage("✅ Profile updated successfully!");
+        setMessage("✅ Profile updated successfully!")
         await refetchUser();
       } else {
         setMessage("❌ Failed to update profile");
       }
     } catch (err) {
       console.error("Error updating profile:", err);
-      setMessage("❌ Error updating profile");
+      setMessage("❌ Error updating profile")
     }
   };
 
@@ -131,12 +133,10 @@ export default function AccountSettingsPage() {
   const Content = (
     <>
       {message && (
-        <div
-          className={`p-4 rounded-md ${
+        <div className={`p-4 rounded-md ${
             message.includes("❌") ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
-          } mb-4`}
-        >
-          {message}
+          } mb-4`}>
+             {message}
           <button onClick={() => setMessage("")} className="ml-4">X</button>
         </div>
       )}
@@ -152,30 +152,44 @@ export default function AccountSettingsPage() {
         />
 
         {/* Email */}
-        <label className="block mt-6 text-[#23358B] font-semibold">Email</label>
+        <label className="block mt-6 text-[#23358B] font-semibold">
+          Email
+          {user?.googleId && (
+            <span className="ml-2 text-xs text-gray-500 font-normal">
+              (Google account - cannot be changed)
+            </span>
+          )}
+        </label>
         <input
           type="email"
           name="email"
           value={form.email}
           onChange={handleChange}
-          className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 outline-none focus:ring-2 focus:ring-[#23358B]/30"
+          disabled={!!user?.googleId}
+          className={`mt-2 w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-[#23358B]/30 ${
+            user?.googleId 
+              ? "bg-gray-100 text-gray-500 cursor-not-allowed" 
+              : "border-neutral-300"
+          }`}
         />
 
         {/* Password */}
-        <label className="block mt-6 text-[#23358B] font-semibold">
-          Password <p className="text-xs">(leave blank to keep current)</p>
-        </label>
-        <div className="relative">
-          <input
-            type={showPassword ? "text" : "password"}
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-[#23358B]/30"
-          />
-          {/* Tombol reveal bisa diaktifkan lagi bila perlu */}
-          {/* <button ...><Eye /></button> */}
-        </div>
+        {!user?.googleId && (
+          <>
+            <label className="block mt-6 text-[#23358B] font-semibold">
+              Password <p className="text-xs">(leave blank to keep current)</p>
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                className="mt-2 w-full rounded-lg border border-neutral-300 px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-[#23358B]/30"
+              />
+            </div>
+          </>
+        )}
 
         {/* Save */}
         <button
@@ -185,7 +199,7 @@ export default function AccountSettingsPage() {
           Save
         </button>
 
-        {/* Delete & Logout */}
+         {/* Delete & Logout */}
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
             type="button"
@@ -209,9 +223,9 @@ export default function AccountSettingsPage() {
 
       {/* DELETE MODAL */}
       {openDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
+         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpenDelete(false)} />
-          <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-8 shadow-2xl ring-1 ring-black/10 mx-4">
+            <div className="relative z-10 w-full max-w-xl rounded-2xl bg-white p-8 shadow-2xl ring-1 ring-black/10 mx-4">
             <button
               onClick={() => setOpenDelete(false)}
               className="absolute right-3 top-3 text-neutral-500 hover:text-neutral-700"
@@ -219,7 +233,6 @@ export default function AccountSettingsPage() {
             >
               <X className="h-5 w-5" />
             </button>
-
             <h2 className="text-3xl font-extrabold text-[#23358B] text-center">Delete Account</h2>
             <p className="mt-3 text-center text-neutral-700">
               To permanently delete your account please type “<b>confirm</b>”
@@ -299,3 +312,4 @@ export default function AccountSettingsPage() {
     </section>
   );
 }
+

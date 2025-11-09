@@ -5,8 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 import Header from "../../components/Header";
 
-// ---- Konstanta search (tidak tampil di UI) ----
-const TOP_K = 8;
+const TOP_K = 10;
 const THRESHOLD = 0.75;
 
 /* ---------- helpers: status mapping & colors ---------- */
@@ -23,7 +22,7 @@ function statusClass(s) {
   if (k === "approved" || k === "approve") return "text-emerald-600";
   if (k === "rejected" || k === "reject") return "text-rose-600";
   if (k === "uploaded") return "text-indigo-600";
-  return "text-amber-500";
+  return "text-amber-500"; 
 }
 function toDateStr(v) {
   if (!v) return "-";
@@ -42,12 +41,10 @@ export default function ManageDocs() {
 
   const [q, setQ] = useState("");
   const [hits, setHits] = useState([]);
-  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [loadingSearch, setLoadingSearch] = useState(false);  
 
-  // ===== Speech to text (opsional) =====
-  const SR =
-    typeof window !== "undefined" &&
-    (window.SpeechRecognition || window.webkitSpeechRecognition);
+  // STT (opsional)
+  const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   const canMic = !!SR;
   const [listening, setListening] = useState(false);
   const startMic = () => {
@@ -80,13 +77,14 @@ export default function ManageDocs() {
         id: String(d._id),
         title: d.title || d.subject || "(untitled)",
         recipient: d.recipient || "-",
-        createdBy: d.createdByUser?.username || "Unknown",
+        // createdBy: d.createdByUser?.username || "Unknown",
+        createdByUser: d.createdByUser, // post commit 4
         uploadDate: toDateStr(d.uploadDate || d.createdAt),
         status: d.status || "On Review",
       }));
       setDocs(normalized);
-
-      const map = {};
+     
+      const map = {};       
       (data || []).forEach((d) => {
         map[String(d._id)] = d;
       });
@@ -100,8 +98,8 @@ export default function ManageDocs() {
     }
   }, [orgId]);
 
-  useEffect(() => {
-    loadDocs();
+  useEffect(() => { 
+    loadDocs(); 
   }, [loadDocs]);
 
   // Auto-reload ketika ViewDoc selesai submit
@@ -113,11 +111,12 @@ export default function ManageDocs() {
       }
     };
     const onFocus = () => maybeReload();
-    const onVis = () => {
-      if (document.visibilityState === "visible") maybeReload();
+    const onVis = () => { 
+      if (document.visibilityState === "visible") maybeReload(); 
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVis);
+
     maybeReload();
     return () => {
       window.removeEventListener("focus", onFocus);
@@ -125,29 +124,26 @@ export default function ManageDocs() {
     };
   }, [loadDocs]);
 
-  const runSearch = useCallback(
-    async (queryStr) => {
-      const text = (queryStr ?? q).trim();
-      if (!text) return clearSearch();
-      setLoadingSearch(true);
-      try {
-        const res = await searchApi({
-          query: text,
-          topK: TOP_K,
-          threshold: THRESHOLD,
-          withAnswer: false,
-          orgId,
-        });
-        setHits(res?.hits ?? []);
-      } catch (e) {
-        console.error("semantic search error:", e);
-        setHits([]);
-      } finally {
-        setLoadingSearch(false);
-      }
-    },
-    [q]
-  );
+  const runSearch = useCallback(async (queryStr) => {
+    const text = (queryStr ?? q).trim();
+    if (!text) return clearSearch();
+    setLoadingSearch(true);
+    try {
+      const res = await searchApi({ 
+        query: text, 
+        topK: TOP_K, 
+        threshold: THRESHOLD, 
+        withAnswer: false,
+        orgId,
+      });
+      setHits(res?.hits ?? []);
+    } catch (e) {
+      console.error("semantic search error:", e);
+      setHits([]);
+    } finally {
+      setLoadingSearch(false);
+    }
+  }, [q]);
 
   const clearSearch = () => setHits([]);
 
@@ -165,6 +161,15 @@ export default function ManageDocs() {
   };
 
   const showingSearch = q.trim().length > 0 && (loadingSearch || hits.length > 0);
+
+  //post commit 4
+  const displayUsername = (user) => {
+    if (!user) return "(Deleted User)";
+    if (user.isDeleted) return "(Deleted User)";
+    if (user.username && user.username.startsWith("[deleted_")) return "-";
+    return user.username || "Unknown";
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -210,7 +215,7 @@ export default function ManageDocs() {
             >
               +
             </button>
-          </div>
+          </div>          
 
           {/* Table */}
           <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-2 sm:p-3">
@@ -242,13 +247,14 @@ export default function ManageDocs() {
                         </div>
                         <div className="mt-1 line-clamp-2 text-xs text-gray-500">{h.text || ""}</div>
                       </div>
-                      <div className="text-gray-700">{meta.author || "—"}</div>
+                      {/* <div className="text-gray-700">{meta.author || "—"}</div>*/} {/* post commit 4 comment */}
+                      <div className="text-gray-700">{displayUsername(meta.createdByUser)}</div> {/* post commit 4 */}
                       <div className="text-gray-700">{toDateStr(meta.uploadDate || meta.createdAt)}</div>
                       <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                       <div className="flex items-center justify-center gap-2">
                         <button
                           className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
-                          title="View"
+                          title="View"                          
                           onClick={() => navigate(`/${orgId}/manage-document/${key}`)}
                         >
                           👁️
@@ -274,10 +280,11 @@ export default function ManageDocs() {
               docs.map((d) => {
                 const displayStatus = prettyStatus(d.status);
                 return (
-                  <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">
+                  <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">                    
                     <div className="text-gray-800">{d.title || "(tanpa subjek)"}</div>
-                    <div className="text-gray-700">{d.createdBy}</div>
-                    <div className="text-gray-700">{d.uploadDate}</div>
+                    {/* <div className="text-gray-700">{d.createdBy}</div> */} {/* post commit 4 comment*/} 
+                    <div className="text-gray-700">{displayUsername(d.createdByUser)}</div> {/* post commit 4 */}                    
+                    <div className="text-gray-700">{d.uploadDate}</div>                    
                     <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                     <div className="flex items-center justify-center gap-2">
                       <button

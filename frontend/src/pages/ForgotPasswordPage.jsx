@@ -1,6 +1,6 @@
+// src/pages/ForgotPasswordPage.jsx
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { users } from "../data/DummyData"; // ✅ import from DummyData.js
 import wave from "../assets/background-forgotpass.png";
 
 export default function ForgotPasswordPage() {
@@ -10,26 +10,26 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    // ✅ Check registered users from DummyData
-    const isRegistered = users.some(
-      (user) => user.email.trim().toLowerCase() === email.trim().toLowerCase()
-    );
+    try {
+      const res = await fetch("http://localhost:8080/api/auth/forgot-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
 
-    // ❌ If not found
-    if (!isRegistered) {
-      alert("This email is not registered in our system.");
-      return;
+      const data = await res.json();
+
+      if (res.ok) {
+        navigate("/forgot/success");
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong");
     }
-
-    // ✅ Simulate reset link
-    const resetLink = `${window.location.origin}/reset?token=${btoa(email)}`;
-    console.log("🔗 Reset link:", resetLink);
-
-    // ✅ Simulate email sending
-    alert(`A password reset link has been sent to ${email}.\nCheck the console for the simulation link.`);
-
-    // ✅ Redirect to success page
-    navigate("/forgot/success");
   };
 
   return (
@@ -48,7 +48,7 @@ export default function ForgotPasswordPage() {
           Forgot Password
         </h1>
         <p className="mt-2 text-neutral-700 text-center leading-relaxed">
-          Enter your email for the verification process. We will send a reset
+          Enter your email for the verification process. We will send a new
           password link to your email.
         </p>
 
@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
             type="submit"
             className="mt-6 w-full rounded-xl bg-[#133962] py-3 text-white font-semibold hover:opacity-90 transition"
           >
-            Send Reset Link
+            Continue
           </button>
 
           <div className="mt-4 text-center text-sm">

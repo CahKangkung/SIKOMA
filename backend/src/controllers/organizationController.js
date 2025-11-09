@@ -95,8 +95,9 @@ export const deleteOrg = async (req, res) => {
             return res.status(400).json({error: "Cannot delete organization while member still exist"});
         }
 
+        const orgName = org.name;
         await org.deleteOne();
-        res.json({ message: "Organization deleted successfully" });
+        res.json({ message: "Organization deleted successfully", name: orgName });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -107,11 +108,21 @@ export const availableOrg = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        const orgs = await Organization.find({
+        /* const orgs = await Organization.find({
             "members.user": { $ne: userId } // Cari semua organisasi yang tidak memiliki anggota dengan userId ini.
         })
             .select("-members") // opsional: hide members list
             .populate("createdBy", "username email"); // ambil name dari pembuat organisasi
+        */ // post commit 4 comment
+
+        const orgs = await Organization.find({
+            $and: [
+                { "members.user": { $ne: userId } },        // belum jadi member
+                { "joinRequests.user": { $ne: userId } }    // belum pernah request
+            ]
+        })
+            .select("-members -joinRequests")
+            .populate("createdBy", "username email");
 
         res.json(orgs);
     
@@ -461,16 +472,7 @@ export const getOrg = async (req, res) => {
     }
 };
 
-// ======================= GET ALL ORG =======================
-// const listAllOrg = async (req, res) => {
-//     try {
-//         const orgs = await Organization.find().populate("createdBy", "name");
-//         res.json(orgs);
-//     } catch (err) {
-//         res.status(500).json({ error: err.message });
-//     }
-// };
-
+// ======================= ORG DASHBOARD STATS =======================
 export const getOrgDashboardStats = async (req, res) => {
   const where = "[getOrgDashboardStats]";
   try {
@@ -574,3 +576,14 @@ export const getOrgDashboardStats = async (req, res) => {
     return res.status(500).json({ error: err?.message || "Internal Server Error" });
   }
 };
+
+// ======================= GET ALL ORG =======================
+// const listAllOrg = async (req, res) => {
+//     try {
+//         const orgs = await Organization.find().populate("createdBy", "name");
+//         res.json(orgs);
+//     } catch (err) {
+//         res.status(500).json({ error: err.message });
+//     }
+// };
+

@@ -63,6 +63,27 @@ export default function OrganizationPage() {
     fetchOrg();
   }, [id, user, loading, navigate]);
 
+  const handleLeave = async () => {
+    try {
+      const res = await fetch(`http://localhost:8080/api/organization/${id}/leave`, {
+        method: "POST",
+        credentials: "include"
+      })
+
+      const data = await res.json();
+
+      if (res.ok) {
+        alert(`✅ Successfully left the organization`);
+        navigate("/home/current");
+      } else {
+        const errorMsg = data.error || data.message || "Failed to delete organization";                
+        alert(`❌ ${errorMsg}`);
+      }
+    } catch (err) {
+      console.error("Error deleting organization:", err);
+      alert("❌ An error occurred while leaving the organization");
+    }
+  }
 
   // // Ambil user aktif dari localStorage
   // const currentUser =
@@ -170,7 +191,19 @@ export default function OrganizationPage() {
               </p>
             </div>
 
-            {/* Button */}
+            {/* Button Settings */}
+            { !isCreator && (
+              <div className="flex justify-start">
+                <button
+                  onClick={handleLeave}
+                  className="px-6 py-2 bg-[#E84545] text-white rounded-md font-semibold hover:opacity-90 transition"
+                >
+                  Leave Organization
+                </button>
+              </div>
+            )}   
+
+            {/* Button Settings */}
             { isCreator && (
               <div className="flex justify-start">
                 <button

@@ -1,9 +1,10 @@
 // src/pages/LoginPage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
 import { useUser } from "../context/UserContext";
+import { googleLogin } from "../Services/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -12,14 +13,25 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // handle input
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get("error");
+    
+    if (errorParam === "google_auth_failed") {
+      setError("Google login failed. Please try again.");
+    } else if (errorParam === "account_deleted") {
+      setError("This account has been deleted.");
+    }
+  }, []);
+
+  // handle perubahan input
   const handleChange = (e) =>
     setForm((prev) => ({ 
       ...prev, 
       [e.target.name]: e.target.value 
     }));
 
-  // handle submit
+  // handle submit login
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -89,7 +101,7 @@ export default function LoginPage() {
           <div className="mt-3 text-red-600 text-sm text-center">{error}</div>
         )}
 
-        {/* Submit button */}
+        {/* Login button */}
         <button
           type="submit"
           disabled={loading}
@@ -102,8 +114,10 @@ export default function LoginPage() {
         <div className="mt-4 text-center text-sm text-neutral-600">
           Or Login with
         </div>
+        {/* Tombol Google login */}
         <button
           type="button"
+          onClick={googleLogin}
           className="mt-3 w-full rounded-xl bg-[#133962] py-3 text-white font-semibold hover:opacity-90 transition"
         >
           Google

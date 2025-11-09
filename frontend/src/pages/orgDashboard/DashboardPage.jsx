@@ -9,9 +9,10 @@ import { getOrgStats } from "../../Services/api";
 export default function DashboardPage() {
   const { id } = useParams();
   const { setCurrentOrgId } = useUser();
-  const { user, loading  }= useUser();
+  const { user, loading }= useUser();
   const [org, setOrg] = useState(null);
   const navigate = useNavigate();
+  // const [message, setMessage] = useState("");
   const [loadingPage, setLoadingPage] = useState(false);
 
   const userId = user ? (user.id || user._id) : null;
@@ -29,9 +30,8 @@ export default function DashboardPage() {
       
       try {
         setLoadingPage(true);
-
-        console.log("🔍 Fetching organization:", id);
-        console.log("👤 Current user:", user);
+        // console.log("🔍 Fetching organization:", id);
+        // console.log("👤 Current user:", user);
 
         const userId = user.id || user._id;
 
@@ -70,7 +70,8 @@ export default function DashboardPage() {
     };
 
     fetchOrg();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps    
   }, [id, user, navigate]);
 
   useEffect(() => {

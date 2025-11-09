@@ -1,7 +1,7 @@
 // src/routes/search.routes.js
 import { Router } from "express";
 import multer from "multer";
-import { ObjectId } from "mongodb";
+import { ObjectId } from "mongodb"; // post commit 3
 import { getDocumentDB } from "../services/db.js";
 import { letterChunks } from "../models/letterChunks.js";
 import { embedText, generateAnswer } from "../services/gemini.js";
@@ -10,35 +10,18 @@ import { transcribeAudio } from "../services/transcribe.js";
 const router = Router();
 const upload = multer();
 
-/** Helper: rakit filter akses sesuai ketentuan */
-function buildAccessFilter(orgId, reqUser) {
-  const orgObjId = ObjectId.isValid(orgId) ? new ObjectId(orgId) : orgId;
-  const userIdStr = String(reqUser?.id || reqUser?._id || "");
-  const userObjId = ObjectId.isValid(userIdStr) ? new ObjectId(userIdStr) : null;
+router.post("/search", async (req, res, next) => {
+  // const { query, topK = 8, withAnswer = false, threshold = 0.75 } = req.body;
+  const { query, topK = 8, withAnswer = false, threshold = 0.75, organizationId } = req.body; // post commit 3
 
-  return {
-    organizationId: orgObjId,
-    $or: [
-      { createdBy: userIdStr },
-      ...(userObjId ? [{ createdBy: userObjId }] : []),
-
-      { recipientsMode: "all" },
-
-      { recipients: userIdStr },
-      ...(userObjId ? [{ recipients: userObjId }] : []),
-      { recipients: { $in: [userIdStr] } },
-      ...(userObjId ? [{ recipients: { $in: [userObjId] } }] : []),
-    ],
-  };
-}
-
-/** Helper: jalankan vector search */
-async function runVectorSearch({ db, query, topK = 8, threshold = null, filter }) {
-  const chunksCol = letterChunks(db);
+  // 🔹 1. Buat embedding dari teks query
   const qvec = await embedText(query);
 
-  const numCandidates = Math.max(40, topK * 6);
-  const limit = Math.max(20, topK * 2);
+  // 🔹 2. Akses koleksi letterChunks
+  const db = await getDocumentDB();
+  const ccol = letterChunks(db);
+
+  const matchStage = organizationId ? { organizationId: new ObjectId(organizationId) } : {}; // post commit 3
 
   // Catatan:
   // - score dari $meta biasanya "semakin besar = semakin mirip" (cosine similarity).
@@ -49,10 +32,10 @@ async function runVectorSearch({ db, query, topK = 8, threshold = null, filter }
         index: "letter_chunks__vsearch",
         path: "embedding",
         queryVector: qvec,
-        numCandidates,
-        limit,
-        ...(filter ? { filter } : {}),
-      },
+        numCandidates: Math.max(40, topK * 6),
+        limit: Math.max(20, topK * 2),
+        filter: matchStage // post commit 3
+      }
     },
     // simpan score di field biasa supaya aman dipakai tahap lanjut
     { $addFields: { score: { $meta: "vectorSearchScore" } } },

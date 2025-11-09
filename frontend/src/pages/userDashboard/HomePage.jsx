@@ -47,7 +47,7 @@ export default function HomePage() {
     } catch (err) {
       console.error("Logout Error: ", err);
     }
-  };
+  };  
 
   return (
     <section className="min-h-screen flex flex-col justify-between bg-white">

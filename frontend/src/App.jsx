@@ -10,6 +10,7 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ForgotPasswordSuccess from "./pages/ForgotPasswordSuccess";
 import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
+import GoogleCallbackPage from "./pages/GoogleCallbackPage"; {/* post commit 4 */}
 
 // User Page
 import HomePage from "./pages/userDashboard/HomePage.jsx";
@@ -37,9 +38,11 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/callback" element={<GoogleCallbackPage />} /> {/* post commit 4 */}
         <Route path="/forgot" element={<ForgotPasswordPage />} />
         <Route path="/forgot/success" element={<ForgotPasswordSuccess />} />
-        <Route path="/reset" element={<ResetPasswordPage />} />
+        {/* <Route path="/reset" element={<ResetPasswordPage />} /> */}
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} /> 
         <Route path="/home" element={
           <AuthRoute>
             <HomePage />
@@ -58,7 +61,8 @@ export default function App() {
         <Route path="/:id/settings" element={<AccountSettingsPage />} />
         <Route path="/:id/manage-document" element={<ManageDocs />} />
         <Route path="/viewdoc" element={<ViewDoc />} />
-        <Route path="/:orgId/manage-document/:docId" element={<ViewDoc />} />
+        {/* <Route path="/:orgId/manage-document/:docId" element={<ViewDoc />} /> */}
+        <Route path="/:id/manage-document/:docId" element={<ViewDoc />} />
         <Route path="/:id/manage-document/add" element={<AddDoc />} />
       </Routes>
     </UserProvider>

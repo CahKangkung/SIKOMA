@@ -16,6 +16,14 @@ const userSchema = new mongoose.Schema(
             type: String,
             required: false
         },
+        isDeleted: { 
+            type: Boolean, 
+            default: false 
+        }, // post commit 4
+        deletedAt: { 
+            type: Date, 
+            default: null 
+        }, // post commit 4
         // Add googleId field
         googleId: {
             type: String,

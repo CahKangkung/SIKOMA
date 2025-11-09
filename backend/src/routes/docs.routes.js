@@ -2,6 +2,10 @@ import express from "express";
 import { ObjectId } from "mongodb";
 import verifyToken from "../middlewares/authMiddleware.js";
 import { LetterModel } from "../models/letters.js";
+import { letterChunks } from "../models/letterChunks.js"; // post commit 3
+import { ocrBuffer, parseDocx } from "../services/parse.js"; // post commit 3
+// import { chunkText } from "../utils/chunkText.js"; // post commit 3
+import { embedText } from "../services/gemini.js"; // post commit 3
 import { getDocumentDB } from "../services/db.js";
 import User from "../models/User.js";
 import Organization from "../models/Organization.js";
@@ -16,6 +20,18 @@ const asObjId = (x) => {
     return null;
   }
 }
+
+// post commit 3
+function chunkText(text, maxLen = 1000) {
+  const chunks = [];
+  let start = 0;
+  while (start < text.length) {
+    const end = start + maxLen;
+    chunks.push(text.slice(start, end));
+    start = end;
+  }
+  return chunks;
+} // batas post commit 3
 
 async function getOrgRole(userId, orgId) {
   const org = await Organization.findById(orgId).select("createdBy members");
@@ -100,15 +116,31 @@ router.get("/", verifyToken, async (req, res) => {
       uMap[String(u._id)] = { id: String(u._id), username: u.username, email: u.email }
     ));
 
-    const payload = letters.map((l) => ({
-      ...l,
-      _id: String(l._id),
-      createdBy: String(l.createdBy || ""),
-      createdByUser: uMap[String(l.createdBy)] || null,
-      recipientsMode: l.recipientsMode || "all",
-      recipients: (l.recipients || []).map((r) => String(r)),
-      recipientsUsers: (l.recipients || []).map((r) => uMap[String(r)]).filter(Boolean),
-    }));
+    // const payload = letters.map((l) => ({
+    //   ...l,
+    //   _id: String(l._id),
+    //   createdBy: String(l.createdBy || ""),
+    //   createdByUser: uMap[String(l.createdBy)] || null,
+    //   recipientsMode: l.recipientsMode || "all",
+    //   recipients: (l.recipients || []).map((r) => String(r)),
+    //   recipientsUsers: (l.recipients || []).map((r) => uMap[String(r)]).filter(Boolean),
+    // }));
+
+    // post commit 3
+    const payload = letters.map((l) => {
+      const isAuthor = String(l.createdBy) === String(req.user.id);
+      return {
+        ...l,
+        _id: String(l._id),
+        createdBy: String(l.createdBy || ""),
+        createdByUser: uMap[String(l.createdBy)] || null,
+        recipientsMode: l.recipientsMode || "all",
+        recipients: (l.recipients || []).map((r) => String(r)),
+        recipientsUsers: (l.recipients || []).map((r) => uMap[String(r)]).filter(Boolean),
+        isAdmin,
+        isAuthor
+      };
+    });
 
     // const authorId = [
     //   ...new Set(
@@ -187,6 +219,7 @@ router.post("/", verifyToken, async (req, res) => {
 
     const db = getDocumentDB();
     const col = LetterModel(db);
+    const ccol = letterChunks(db); // post commit 3
 
     // let createdBy = req.user.id;
     // try {
@@ -223,8 +256,51 @@ router.post("/", verifyToken, async (req, res) => {
       reviews: [] //new    
     };
 
+    // post commit 3
+    const { insertedId } = await col.insertOne(doc);
+
+    // Jika fileId ada, ambil file-nya dari GridFS
+    if (doc.fileId) {
+      const bucket = (await import("../services/db.js")).getBucket();
+      const downloadStream = bucket.openDownloadStream(doc.fileId);
+      const chunks = [];
+
+      for await (const chunk of downloadStream) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+
+      const fileMeta = await db.collection("uploads.files").findOne({ _id: doc.fileId }); // post commit 3
+      const mime = fileMeta?.contentType || "application/octet-stream"; // post commit 3
+
+      // Ekstraksi teks
+      let text = "";
+      if (mime === "application/pdf" || mime.startsWith("image/")) {
+        // text = await ocrBuffer(buffer, mime, "file.pdf");
+        text = await ocrBuffer(buffer, mime, fileMeta?.filename || "file.pdf");
+      } else if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        text = await parseDocx(buffer);
+      }
+
+      if (text) {
+        const parts = chunkText(text);
+        for (let i = 0; i < parts.length; i++) {
+          const emb = await embedText(parts[i]);
+          await ccol.insertOne({
+            docId: insertedId,
+            organizationId: asObjId(organizationId), // tambahkan relasi org
+            page: i + 1,
+            text: parts[i],
+            embedding: emb,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      }
+    } // batas post commit 3
+
     // const result = await LetterModel.create(newLetter);
-    const result = await col.insertOne(doc);
+    // const result = await col.insertOne(doc); // post commit 3 dikomen
 
     let createdByUser = null;
     try {
@@ -240,7 +316,13 @@ router.post("/", verifyToken, async (req, res) => {
       }
     } catch {}
     // res.status(201).json(result);
-    res.status(201).json({ _id: result.insertedId, ...doc, createdBy: String(doc.createdBy), createdByUser });
+    res.status(201).json({ 
+      // _id: result.insertedId, 
+      _id: String(insertedId), // post commit 3 
+      ...doc, 
+      createdBy: String(doc.createdBy), 
+      createdByUser 
+    });
   } catch (err) {
     console.error("Create document error:", err);
     res.status(500).json({ message: "Failed to create documents" })
@@ -311,6 +393,45 @@ router.get("/:id", verifyToken, async (req, res, next) => {
       isRecipient,
       isAdmin
     };
+
+    // post commit 3
+    // Tambahkan lookup ke nama file (optional tapi disarankan) 
+    if (doc.fileId) {
+      const fileMeta = await getDocumentDB().collection("uploads.files").findOne({ _id: new ObjectId(doc.fileId) });
+      if (fileMeta) {
+        // payload.originalName = fileMeta.filename;
+        payload.originalName = fileMeta.metadata?.originalName || fileMeta.filename; // post commit 3
+        payload.mimeType = fileMeta.contentType;
+      }
+    }
+
+    //post commit 3
+    // ✅ Tambahkan lookup untuk file pada setiap review
+    const reviewFileIds = (doc.reviews || [])
+      .filter((r) => r.fileId)
+      .map((r) => new ObjectId(r.fileId));
+
+    if (reviewFileIds.length > 0) {
+      const reviewFiles = await db
+        .collection("uploads.files")
+        .find({ _id: { $in: reviewFileIds } })
+        .project({ _id: 1, filename: 1, "metadata.originalName": 1 })
+        .toArray();
+
+      const reviewFileMap = Object.fromEntries(
+        reviewFiles.map((f) => [
+          f._id.toString(),
+          {
+            filename: f.metadata?.originalName || f.filename,
+          },
+        ])
+      );
+
+      payload.reviews = payload.reviews.map((r) => ({
+        ...r,
+        file: r.fileId ? reviewFileMap[r.fileId] || null : null,
+      }));
+    } // batas post commit 3
 
     res.json(payload);
   
@@ -444,6 +565,9 @@ router.delete("/:id", verifyToken, async (req, res) => {
     const db = getDocumentDB();
     const col = LetterModel(db);    
 
+    const ccol = letterChunks(db); // post commit 3
+    await ccol.deleteMany({ docId: oid }); // post commit 3
+
     const doc = await col.findOne({ _id: oid, organizationId: orgObjId });
     if (!doc) {
       return res.status(404).json({ message: "Not found" });
@@ -456,6 +580,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
     }
 
     await col.deleteOne({ _id: oid, organizationId: orgObjId });
+    await db.collection("letter_chunks").deleteMany({ docId: oid }); // post commit 3
 
     // const result = await LetterModel.deleteById(id, orgId);
     // const result = await col.deleteOne({

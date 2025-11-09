@@ -94,6 +94,13 @@ export default function MemberPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user, loading]);
 
+  // Auto dismiss alert
+  useEffect(() => {
+    if (!message) return;
+    const t = setTimeout(() => setMessage(""), 3000);
+    return () => clearTimeout(t);
+  }, [message]);
+
   const approveUser = async (userIdRequest) => {
     try {
       const res = await fetch(`http://localhost:8080/api/organization/${id}/approve/${userIdRequest}`, {
@@ -139,28 +146,28 @@ export default function MemberPage() {
   const handleKickUser = async (memberId) => {
       // if (!window.confirm("Are you sure you want to remove this member?")) return;
       try {
-          const res = await fetch(`http://localhost:8080/api/organization/${id}/members/${memberId}`, {
-              method: "DELETE",
-              headers: {
-                  // Authorization: `Bearer ${localStorage.getItem("token")}`,
-                  "Content-Type": "application/json",                    
-              }, 
-              credentials: "include"
-          });
+        const res = await fetch(`http://localhost:8080/api/organization/${id}/members/${memberId}`, {
+            method: "DELETE",
+            headers: {
+                // Authorization: `Bearer ${localStorage.getItem("token")}`,
+                "Content-Type": "application/json",                    
+            }, 
+            credentials: "include"
+        });
 
-          const data = await res.json();
+        const data = await res.json();
 
-          if (res.ok) {
-              // alert("Member removed successfully");
-              setMessage("🗑️ Member removed successfully!");
-              setMember(data.members);
-              fetchMember();
-          } else {
-              setMessage(`❌ Failed to remove member: ${data.error}`);
-          }
+        if (res.ok) {
+            // alert("Member removed successfully");
+            setMessage("🗑️ Member removed successfully!");
+            setMember(data.members);
+            fetchMember();
+        } else {
+            setMessage(`❌ Failed to remove member: ${data.error}`);
+        }
       } catch (err) {
-          console.error(err);
-          setMessage(`❌ Error removing member`);
+        console.error(err);
+        setMessage(`❌ Error removing member`);
       }
   };
 
@@ -212,12 +219,16 @@ export default function MemberPage() {
   //   organizations[4]; // fallback
 
   // const currentMembers = activeOrg?.members || [];
-  const filteredRequests = request.filter((r) =>
+  const filteredRequests = request.filter((r) => 
+    // if (!r.user) return false;
+
     (r.user?.username || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (r.user?.email || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredMembers = member.filter((m) =>
+  const filteredMembers = member.filter((m) => 
+    // if (!m.user) return false;
+
     (m.user?.username || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     (m.user?.email || "").toLowerCase().includes(searchTerm.toLowerCase())
   );  
@@ -392,8 +403,10 @@ export default function MemberPage() {
                 </thead>
                 <tbody>
                   {filteredRequests.length > 0 ? (
-                    filteredRequests.map((req) =>                      
-                      (
+                    filteredRequests.map((req) => {
+                      // if (!req.user) return null;
+                                         
+                      return (
                         <tr
                           key={req.user._id}
                           className="border border-gray-200 hover:bg-gray-50 transition-all"
@@ -422,7 +435,7 @@ export default function MemberPage() {
                           </td>
                         </tr>
                       )
-                    )
+                    })
                   ) : (
                     <tr>
                       <td

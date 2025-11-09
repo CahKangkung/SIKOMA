@@ -16,7 +16,7 @@ export function UserProvider({ children }) {
         if (orgId) localStorage.setItem("currentOrgId", orgId);
         else localStorage.removeItem("currentOrgId");
     };
-
+    
     const fetchUser = async () => {
         try {
             // setLoading(true); // optional
