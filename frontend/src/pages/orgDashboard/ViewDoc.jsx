@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getDoc, deleteDoc, upload, updateDocStatus } from "../../Services/api";
 import Sidebar from "../../components/Sidebar";
+import Header from "../../components/Header";
 import {
   ArrowLeft,
   Trash2,
@@ -221,11 +222,7 @@ export default function ViewDoc() {
       <Sidebar activePage="Manage Document" orgId={orgId} />
       <div className="ml-64 min-h-screen">
         {/* TOP BAR */}
-        <header className="sticky top-0 z-30 border-b bg-white">
-          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-            <h1 className="text-2xl font-bold text-[#23358B]">View Document</h1>
-          </div>
-        </header>
+        <Header title="View Document" />
 
         <main className="mx-auto max-w-7xl px-6 py-6">
           {loading && <div className="text-gray-500">Loading…</div>}
