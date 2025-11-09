@@ -1,18 +1,20 @@
 // src/pages/JoinOrganizationPage.jsx
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUser } from "../../context/UserContext";
-// import { organizations } from "../../data/DummyData" 
+import { User as UserIcon, IdCard, LogOut } from "lucide-react";
 
 export default function JoinOrganizationPage() {
-  const { user, loading } = useUser();
+  const { user, loading, clearUser } = useUser();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [orgs, setOrgs] = useState([]);
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [submited, setSubmited] = useState(false);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     const fetchAvailableOrgs = async () => {
@@ -44,7 +46,7 @@ export default function JoinOrganizationPage() {
 
     try {
       setSubmited(true);
-      const res = await fetch(`http://localhost:8080/api/organization/${selectedOrg._id}/join`, {
+      const res = await fetch(`http://localhost:8080/api/organization/${orgId}/join`, {
         method: "POST",
         credentials: "include"
       });
@@ -68,6 +70,33 @@ export default function JoinOrganizationPage() {
   const filtered = orgs.filter((org) =>
     org.name.toLowerCase().includes(search.toLowerCase().trim())
   );
+
+  useEffect(() => {
+    const onClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8080/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      clearUser();
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout Error: ", err);
+    }
+  };
 
   // const handleConfirm = () => {
   //   const pendingList = JSON.parse(localStorage.getItem("pendingRequests") || "[]");
@@ -100,7 +129,7 @@ export default function JoinOrganizationPage() {
 
   return (
     <section className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="flex justify-between items-center px-6 py-4 border-b bg-white shadow-sm">
+      <header className="flex justify-between items-center px-6 py-4 border-b bg-white shadow-sm" style={{ position: "sticky", top: "0" }}>
         <button
           onClick={() => navigate(-1)}
           className="inline-flex items-center gap-2 text-sm text-[#23358B] hover:underline"
@@ -108,9 +137,44 @@ export default function JoinOrganizationPage() {
           <ChevronLeft size={18} /> Return
         </button>
         <h1 className="text-xl font-bold text-gray-800">Existing Organization</h1>
-        <div className="flex items-center gap-2 text-[#23358B] font-medium">
-          <span>{user?.username || "User"}</span>
-          <div className="w-8 h-8 bg-gray-200 rounded-full grid place-items-center">👤</div>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
+          >
+            <span>{user?.username || "User"}</span>
+            <UserIcon className="w-5 h-5" />
+          </button>
+
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-neutral-900 text-white shadow-2xl ring-1 ring-black/10 z-50"
+            >
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                navigate("/account");
+              }}
+              className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
+            >
+              <IdCard className="h-5 w-5 text-white/80" />
+              <span>Account Detail</span>
+            </button>
+            <div className="h-px bg-white/10" />
+              <button
+                role="menuitem"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800 text-red-300"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -194,7 +258,7 @@ export default function JoinOrganizationPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleJoin}
+                  onClick={() => handleJoin(selectedOrg._id)}
                   disabled={submited}
                   className="px-6 py-2 rounded-full bg-green-700 text-white hover:opacity-90"
                 >

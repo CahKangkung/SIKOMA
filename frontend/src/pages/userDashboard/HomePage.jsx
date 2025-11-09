@@ -21,28 +21,6 @@ export default function HomePage() {
   
   }, [user, loading, navigate])
 
-  // useEffect(() => {
-  //   const fetchUser = async () => {
-  //     try {
-  //       const res = await fetch("http://localhost:5000/api/auth/me", {
-  //         credentials: "include"
-  //       });
-
-  //       const data = await res.json();
-        
-  //       if (res.ok) {
-  //         setUser(data.user);
-  //       }     
-
-  //     } catch (err) {
-  //       console.error("Fetch user error: ", err);       
-  //     } 
-  //   };
-
-  //   fetchUser();
-  // }, []);
-  // }, [navigate]);
-
   // Tutup dropdown
   useEffect(() => {
     const onClick = (e) => {
@@ -69,30 +47,7 @@ export default function HomePage() {
     } catch (err) {
       console.error("Logout Error: ", err);
     }
-  };
-
-  // ✅ CRITICAL: Loading state HARUS DI ATAS, sebelum render konten utama
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center bg-white">
-  //       <div className="text-center">
-  //         <div className="text-lg text-gray-600 mb-2">Loading...</div>
-  //         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
-  // ✅ Jika tidak ada user setelah loading selesai, tampilkan pesan (seharusnya sudah redirect)
-  // if (!user) {
-  //   return (
-  //     <div className="min-h-screen flex items-center justify-center bg-white">
-  //       <div className="text-center">
-  //         <div className="text-lg text-gray-600">Redirecting to login...</div>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  };  
 
   return (
     <section className="min-h-screen flex flex-col justify-between bg-white">

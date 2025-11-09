@@ -15,7 +15,8 @@ import {
     memberList,
     deleteMember,
     transferAdmin,
-    getOrg
+    getOrg,
+    getOrgDashboardStats
 } from "../controllers/organizationController.js";
 
 const router = express.Router();
@@ -64,6 +65,9 @@ router.put("/:id/transfer/:memberId", transferAdmin);
 
 // Get organization id
 router.get("/:id", getOrg);
+
+// Get organization dashboard stats
+router.get("/:id/stats", getOrgDashboardStats);
 
 // Get all organization
 // router.get("/all", allOrg);

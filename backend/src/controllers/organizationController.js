@@ -1,5 +1,7 @@
 import express from "express";
 import Organization from "../models/Organization.js";
+import { getDocumentDB } from "../services/db.js";
+import { ObjectId } from "mongodb";
 
 // ======================= CREATE ORG =======================
 export const createOrg = async (req, res) => {
@@ -93,8 +95,9 @@ export const deleteOrg = async (req, res) => {
             return res.status(400).json({error: "Cannot delete organization while member still exist"});
         }
 
+        const orgName = org.name;
         await org.deleteOne();
-        res.json({ message: "Organization deleted successfully" });
+        res.json({ message: "Organization deleted successfully", name: orgName });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -105,11 +108,21 @@ export const availableOrg = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        const orgs = await Organization.find({
+        /* const orgs = await Organization.find({
             "members.user": { $ne: userId } // Cari semua organisasi yang tidak memiliki anggota dengan userId ini.
         })
             .select("-members") // opsional: hide members list
             .populate("createdBy", "username email"); // ambil name dari pembuat organisasi
+        */ // post commit 4 comment
+
+        const orgs = await Organization.find({
+            $and: [
+                { "members.user": { $ne: userId } },        // belum jadi member
+                { "joinRequests.user": { $ne: userId } }    // belum pernah request
+            ]
+        })
+            .select("-members -joinRequests")
+            .populate("createdBy", "username email");
 
         res.json(orgs);
     
@@ -459,6 +472,111 @@ export const getOrg = async (req, res) => {
     }
 };
 
+// ======================= ORG DASHBOARD STATS =======================
+export const getOrgDashboardStats = async (req, res) => {
+  const where = "[getOrgDashboardStats]";
+  try {
+    const { id } = req.params;
+
+    // ---- Guard req.user ----
+    if (!req.user || !(req.user.id || req.user._id)) {
+      console.error(where, "Missing req.user. Did authMiddleware run?");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // ---- IDs ----
+    const orgObjId = ObjectId.isValid(id) ? new ObjectId(id) : id;
+    const userIdStr = String(req.user.id || req.user._id);
+    const userObjId = ObjectId.isValid(userIdStr) ? new ObjectId(userIdStr) : null;
+
+    // ---- DB / collection ----
+    const db = getDocumentDB();
+    if (!db) {
+      console.error(where, "getDocumentDB() returned null/undefined");
+      return res.status(500).json({ error: "DB not initialized" });
+    }
+    const lettersCol = db.collection("letters");
+
+    // ---- Match filter (sesuai ketentuan) ----
+    const baseMatch = {
+      organizationId: orgObjId,
+      $or: [
+        { createdBy: userIdStr },
+        ...(userObjId ? [{ createdBy: userObjId }] : []),
+        { recipientsMode: "all" },
+        { recipients: userIdStr },
+        ...(userObjId ? [{ recipients: userObjId }] : []),
+        { recipients: { $in: [userIdStr] } },
+        ...(userObjId ? [{ recipients: { $in: [userObjId] } }] : []),
+      ],
+    };
+
+    console.log(where, "orgId:", id, "user:", userIdStr);
+    console.log(where, "baseMatch:", JSON.stringify(baseMatch));
+
+    // ---- Aggregation ----
+    const byStatus = await lettersCol
+      .aggregate([
+        { $match: baseMatch },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ])
+      .toArray();
+
+    console.log(where, "byStatus:", byStatus);
+
+    // ---- Map counts ----
+    const counts = { uploaded: 0, onReview: 0, approved: 0, rejected: 0 };
+    const mapKey = (k) => {
+      const norm = String(k ?? "").toLowerCase();
+      if (["on_review", "review", "onreview", "pending_review", "on review"].includes(norm)) return "onReview";
+      if (["approved", "approve", "accepted"].includes(norm)) return "approved";
+      if (["rejected", "reject", "declined"].includes(norm)) return "rejected";
+      if (["uploaded", "upload", "draft", "new"].includes(norm)) return "uploaded";
+      return null;
+    };
+    for (const row of byStatus) {
+      const key = mapKey(row?._id);
+      if (key) counts[key] = row?.count ?? 0;
+    }
+
+    // ---- Organization info ----
+    const org = await Organization.findById(orgObjId)
+      .populate("createdBy", "username email")
+      .populate("members.user", "username email")
+      .lean();
+
+    if (!org) {
+      console.error(where, "Organization not found:", id);
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    let role = "member";
+    const isOwner = String(org.createdBy?._id || org.createdBy) === userIdStr;
+    if (isOwner) role = "admin";
+    else if (Array.isArray(org.members)) {
+      const me = org.members.find((m) => String(m.user?._id || m.user) === userIdStr);
+      if (me?.role) role = me.role;
+    }
+
+    const payload = {
+      organization: {
+        id: String(org._id),
+        name: org.name,
+        author: org.createdBy?.username || org.createdBy?.email || String(org.createdBy),
+        totalMembers: org.members?.length ?? 0,
+        role,
+      },
+      stats: counts,
+    };
+
+    console.log(where, "response:", payload);
+    return res.json(payload);
+  } catch (err) {
+    console.error("[getOrgDashboardStats] ERROR:", err);
+    return res.status(500).json({ error: err?.message || "Internal Server Error" });
+  }
+};
+
 // ======================= GET ALL ORG =======================
 // const listAllOrg = async (req, res) => {
 //     try {
@@ -468,3 +586,4 @@ export const getOrg = async (req, res) => {
 //         res.status(500).json({ error: err.message });
 //     }
 // };
+

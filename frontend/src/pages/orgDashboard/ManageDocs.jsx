@@ -1,9 +1,12 @@
+// src/pages/ManageDocs.jsx
 import { useEffect, useState, useCallback } from "react";
 import { listDocs, deleteDoc, search as searchApi } from "../../Services/api";
 import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
+import Header from "../../components/Header";
 
-// const DUMMY_AUTHORS = ["UKM Seni Rupa", "Himpunan Mahasiswa SI", "UKM Robotika", "BEM Fakultas"];
+const TOP_K = 10;
+const THRESHOLD = 0.75;
 
 /* ---------- helpers: status mapping & colors ---------- */
 function prettyStatus(s) {
@@ -19,7 +22,7 @@ function statusClass(s) {
   if (k === "approved" || k === "approve") return "text-emerald-600";
   if (k === "rejected" || k === "reject") return "text-rose-600";
   if (k === "uploaded") return "text-indigo-600";
-  return "text-amber-500"; // on review / default
+  return "text-amber-500"; 
 }
 function toDateStr(v) {
   if (!v) return "-";
@@ -32,19 +35,16 @@ function toDateStr(v) {
 }
 
 export default function ManageDocs() {
+  const { id: orgId } = useParams();
+  const navigate = useNavigate();
+
   const [docs, setDocs] = useState([]);
   const [docMap, setDocMap] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(true);
 
   const [q, setQ] = useState("");
   const [hits, setHits] = useState([]);
-  const [loadingSearch, setLoadingSearch] = useState(false);
-  const [threshold, setThreshold] = useState(0.75);
-  const [topK, setTopK] = useState(8);
-
-  // const { id } = useParams();
-  const { id: orgId } = useParams();
-  const navigate = useNavigate();
+  const [loadingSearch, setLoadingSearch] = useState(false);  
 
   // STT (opsional)
   const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -80,7 +80,8 @@ export default function ManageDocs() {
         id: String(d._id),
         title: d.title || d.subject || "(untitled)",
         recipient: d.recipient || "-",
-        createdBy: d.createdByUser?.username || "Unknown",
+        // createdBy: d.createdByUser?.username || "Unknown",
+        createdByUser: d.createdByUser, // post commit 4
         uploadDate: toDateStr(d.uploadDate || d.createdAt),
         // dueDate: toDateStr(d.dueDate) || "-",
         status: d.status || "On Review",
@@ -88,10 +89,8 @@ export default function ManageDocs() {
         // author: d.author ?? DUMMY_AUTHORS[i % DUMMY_AUTHORS.length],
       }));
       setDocs(normalized);
-
-      // simpan map utk lookup search (docId → metadata asli)
-      const map = {}; 
-      // normalized.forEach(d => { map[String(d.id)] = d; });
+     
+      const map = {};       
       (data || []).forEach((d) => {
         map[String(d._id)] = d;
       });
@@ -105,9 +104,11 @@ export default function ManageDocs() {
     }
   }, [orgId]);
 
-  useEffect(() => { loadDocs(); }, [loadDocs]);
+  useEffect(() => { 
+    loadDocs(); 
+  }, [loadDocs]);
 
-  // ⬇️ Auto-reload ketika ViewDoc selesai submit
+  // Auto-reload ketika ViewDoc selesai submit
   useEffect(() => {
     const maybeReload = () => {
       if (localStorage.getItem("needsReloadDocs") === "1") {
@@ -118,10 +119,12 @@ export default function ManageDocs() {
 
     // cek saat kembali ke tab / window fokus
     const onFocus = () => maybeReload();
-    const onVis = () => { if (document.visibilityState === "visible") maybeReload(); };
+    const onVis = () => { 
+      if (document.visibilityState === "visible") maybeReload(); 
+    };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVis);
-    // cek segera juga
+
     maybeReload();
     return () => {
       window.removeEventListener("focus", onFocus);
@@ -134,7 +137,13 @@ export default function ManageDocs() {
     if (!text) return clearSearch();
     setLoadingSearch(true);
     try {
-      const res = await searchApi({ query: text, topK, threshold, withAnswer: false });
+      const res = await searchApi({ 
+        query: text, 
+        topK: TOP_K, 
+        threshold: THRESHOLD, 
+        withAnswer: false,
+        orgId,
+      });
       setHits(res?.hits ?? []);
     } catch (e) {
       console.error("semantic search error:", e);
@@ -142,7 +151,7 @@ export default function ManageDocs() {
     } finally {
       setLoadingSearch(false);
     }
-  }, [q, topK, threshold]);
+  }, [q]);
 
   const clearSearch = () => setHits([]);
 
@@ -164,16 +173,21 @@ export default function ManageDocs() {
 
   const showingSearch = q.trim().length > 0 && (loadingSearch || hits.length > 0);
 
+  //post commit 4
+  const displayUsername = (user) => {
+    if (!user) return "(Deleted User)";
+    if (user.isDeleted) return "(Deleted User)";
+    if (user.username && user.username.startsWith("[deleted_")) return "-";
+    return user.username || "Unknown";
+  };
+
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Sidebar activePage="Manage Document" />
 
       <div className="ml-64 min-h-screen">
-        <header className="sticky top-0 z-30 border-b bg-white">
-          <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
-            <h1 className="text-lg font-semibold text-[#23358B]">Manage Document</h1>
-          </div>
-        </header>
+        <Header title="Manage Document" />
 
         <main className="mx-auto max-w-7xl px-6 py-6">
           {/* Search + Add */}
@@ -211,28 +225,7 @@ export default function ManageDocs() {
             >
               +
             </button>
-          </div>
-
-          {/* Params (opsional) */}
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-            <div className="flex items-center gap-2">
-              <span>topK</span>
-              <input
-                type="number" min="1" max="30" value={topK}
-                onChange={(e) => setTopK(Number(e.target.value) || 8)}
-                className="w-20 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span>threshold</span>
-              <input
-                type="number" step="0.01" min="0" max="1" value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value) || 0.75)}
-                className="w-24 rounded border border-gray-300 px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-300"
-              />
-            </div>
-            {showingSearch && (<span>hasil: {hits.length}{loadingSearch ? " (loading…)" : ""}</span>)}
-          </div>
+          </div>          
 
           {/* Table */}
           <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-2 sm:p-3">
@@ -261,20 +254,18 @@ export default function ManageDocs() {
                           {meta.title || meta.subject || `(Doc ${key.slice(-6)})`}
                         </div>
                         <div className="text-xs text-gray-500">
-                          Score: {" "} 
-                          {typeof h.score === "number" ? h.score.toFixed(3) : h.score}{" "} • Hal {h.page}
+                          Score: {typeof h.score === "number" ? h.score.toFixed(3) : h.score} • Hal {h.page}
                         </div>
                         <div className="mt-1 line-clamp-2 text-xs text-gray-500">{h.text || ""}</div>
                       </div>
-                      <div className="text-gray-700">{meta.author || "—"}</div>
-                      {/* <div className="text-gray-700">{meta.date || "—"}</div>                      */}
+                      {/* <div className="text-gray-700">{meta.author || "—"}</div>*/} {/* post commit 4 comment */}
+                      <div className="text-gray-700">{displayUsername(meta.createdByUser)}</div> {/* post commit 4 */}
                       <div className="text-gray-700">{toDateStr(meta.uploadDate || meta.createdAt)}</div>
                       <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                       <div className="flex items-center justify-center gap-2">
                         <button
                           className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
-                          title="View"
-                          // onClick={() => navigate(`/${orgId}/manage-document/${meta.id || h.docId}`)}
+                          title="View"                          
                           onClick={() => navigate(`/${orgId}/manage-document/${key}`)}
                         >
                           👁️
@@ -292,22 +283,19 @@ export default function ManageDocs() {
                   );
                 })
               ) : (
-                <div className="px-3 py-4 text-sm text-gray-500">No Result ≥ {threshold}.</div>
+                <div className="px-3 py-4 text-sm text-gray-500">No Result ≥ {THRESHOLD}.</div>
               )
-            ) : // List mode
-            loadingDocs ? (
+            ) : loadingDocs ? (
               <div className="px-3 py-4 text-sm text-gray-500">Loading…</div>
             ) : docs.length ? (
               docs.map((d) => {
                 const displayStatus = prettyStatus(d.status);
                 return (
-                  <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">
-                    {/* <div className="text-gray-800">{d.subject || "(tanpa subjek)"}</div> */}
+                  <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">                    
                     <div className="text-gray-800">{d.title || "(tanpa subjek)"}</div>
-                    <div className="text-gray-700">{d.createdBy}</div>
-                    {/* <div className="text-gray-700">{d.date}</div> */}
-                    <div className="text-gray-700">{d.uploadDate}</div>
-                    {/* <div className="text-gray-700">{d.dueDate}</div> */}
+                    {/* <div className="text-gray-700">{d.createdBy}</div> */} {/* post commit 4 comment*/} 
+                    <div className="text-gray-700">{displayUsername(d.createdByUser)}</div> {/* post commit 4 */}                    
+                    <div className="text-gray-700">{d.uploadDate}</div>                    
                     <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
                     <div className="flex items-center justify-center gap-2">
                       <button

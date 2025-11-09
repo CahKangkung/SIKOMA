@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
-import { Plus, Search, ChevronLeft, User as UserIcon } from "lucide-react";
-import { organizations } from "../../data/DummyData";
+import { Plus, Search, ChevronLeft, User as UserIcon, IdCard, LogOut } from "lucide-react";
 
 export default function CurrentOrganizationsPage() {
-  const { user, loading } = useUser();
+  const { user, loading, clearUser } = useUser();
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [loadingPage, setLoadingPage] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   // const [orgList, setOrgList] = useState([]);
 
   const [allOrgs, setAllOrgs] = useState([]);
@@ -198,7 +199,33 @@ export default function CurrentOrganizationsPage() {
     );
   };
 
-  // ✅ Loading state
+  useEffect(() => {
+      const onClick = (e) => {
+        if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      };
+      const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+      document.addEventListener("mousedown", onClick);
+      document.addEventListener("keydown", onKey);
+      return () => {
+        document.removeEventListener("mousedown", onClick);
+        document.removeEventListener("keydown", onKey);
+      };
+    }, []);
+  
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8080/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      clearUser();
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout Error: ", err);
+    }
+  };
+
   if (loading || loadingPage) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -213,7 +240,7 @@ export default function CurrentOrganizationsPage() {
   return (
     <section className="bg-gray-50 min-h-screen flex flex-col justify-between">
       {/* ===== Header ===== */}
-      <header className="flex justify-between items-center px-6 py-4 border-b bg-white">
+      <header className="flex justify-between items-center px-6 py-4 border-b bg-white relative z-50" style={{ position: "sticky", top: "0" }}>
         <button
           onClick={() => navigate("/home")}
           className="inline-flex items-center gap-2 text-sm text-[#23358B] hover:underline"
@@ -221,9 +248,44 @@ export default function CurrentOrganizationsPage() {
           <ChevronLeft size={18} /> Return
         </button>
 
-        <div className="flex items-center gap-2 text-[#23358B] font-medium">
-          <span>{user?.username || "User"}</span>
-          <UserIcon className="w-5 h-5" />
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
+          >
+            <span>{user?.username || "User"}</span>
+            <UserIcon className="w-5 h-5" />
+          </button>
+
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-neutral-900 text-white shadow-2xl ring-1 ring-black/10 z-50"
+            >
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/account");
+                }}
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
+              >
+                <IdCard className="h-5 w-5 text-white/80" />
+                <span>Account Detail</span>
+              </button>
+              <div className="h-px bg-white/10" />
+              <button
+                role="menuitem"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800 text-red-300"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -309,15 +371,18 @@ export default function CurrentOrganizationsPage() {
                     
                     {org.status === "pending" && (
                       <>
-                        <button
-                          onClick={() => cancelReqOrg(org._id, org.name)}
-                          className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
-                        >
-                          Cancel
-                        </button>
-                        <span className="text-yellow-600 text-sm font-semibold">
-                            ⌛ Waiting for approval
-                        </span>
+                        <div>                          
+                          <span className="text-yellow-600 text-sm font-semibold">
+                              ⌛ Waiting for approval
+                          </span>
+                          <button
+                            onClick={() => cancelReqOrg(org._id, org.name)}
+                            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+                            style={{ marginLeft: "10px" }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
                       </>
                     )}
 

@@ -1,8 +1,8 @@
 // src/pages/CreateOrganizationPage.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
-import { ChevronLeft, User as UserIcon } from "lucide-react";
+import { ChevronLeft, User as UserIcon, IdCard, LogOut } from "lucide-react";
 
 export default function CreateOrganizationPage() {
   const navigate = useNavigate();
@@ -10,8 +10,10 @@ export default function CreateOrganizationPage() {
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
-  const { user } = useUser();
+  const { user, clearUser } = useUser();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -49,7 +51,34 @@ export default function CreateOrganizationPage() {
     } finally {
       setSubmitting(false);
     }
-  }
+  };
+
+  useEffect(() => {
+      const onClick = (e) => {
+        if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      };
+      const onKey = (e) => e.key === "Escape" && setMenuOpen(false);
+      document.addEventListener("mousedown", onClick);
+      document.addEventListener("keydown", onKey);
+      return () => {
+        document.removeEventListener("mousedown", onClick);
+        document.removeEventListener("keydown", onKey);
+      };
+    }, []);
+  
+  const handleLogout = async () => {
+    try {
+      await fetch("http://localhost:8080/api/auth/logout", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      clearUser();
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout Error: ", err);
+    }
+  };
 
   return (
     <section className="min-h-screen flex flex-col justify-between bg-gray-50">
@@ -60,9 +89,44 @@ export default function CreateOrganizationPage() {
         >
           <ChevronLeft size={18} /> Return
         </button>
-        <div className="flex items-center gap-2 text-[#23358B] font-medium">
-          <span>{user?.username || "User"}</span>
-          <UserIcon className="w-5 h-5" />
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
+          >
+            <span>{user?.username || "User"}</span>
+            <UserIcon className="w-5 h-5" />
+          </button>
+
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-neutral-900 text-white shadow-2xl ring-1 ring-black/10 z-50"
+            >
+            <button
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                navigate("/account");
+              }}
+              className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
+            >
+              <IdCard className="h-5 w-5 text-white/80" />
+              <span>Account Detail</span>
+            </button>
+            <div className="h-px bg-white/10" />
+              <button
+                role="menuitem"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800 text-red-300"
+              >
+                <LogOut className="h-5 w-5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

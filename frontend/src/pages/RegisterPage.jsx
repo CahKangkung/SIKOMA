@@ -2,6 +2,7 @@ import React, {useState} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import FormField from "../components/FormField";
+import { googleLogin } from "../Services/api";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export default function RegisterPage() {
 
         <button
           type="button"
+          onClick={googleLogin}
           className="mt-3 w-full rounded-xl bg-[#133962] py-3 text-white font-semibold hover:opacity-90 transition"
         >
           Google

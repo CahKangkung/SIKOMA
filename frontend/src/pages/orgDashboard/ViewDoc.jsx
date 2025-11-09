@@ -68,7 +68,7 @@ function Meta({ label, value, alignRight = false }) {
 }
 
 export default function ViewDoc() {
-  const { orgId, docId } = useParams();
+  const { id: orgId, docId } = useParams();
   const navigate = useNavigate();
 
   const [doc, setDoc] = useState(null);
@@ -209,9 +209,16 @@ export default function ViewDoc() {
   const canDelete = doc?.isAdmin || doc?.isAuthor;
   const canSetStatus = doc?.canSetStatus;
 
+  const displayUsername = (user) => {
+    if (!user) return "(Deleted User)";
+    if (user.isDeleted) return "(Deleted User)";
+    if (user.username && user.username.startsWith("[deleted_")) return "-";
+    return user.username || "Unknown";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar activePage="Manage Document" />
+      <Sidebar activePage="Manage Document" orgId={orgId} />
       <div className="ml-64 min-h-screen">
         {/* TOP BAR */}
         <header className="sticky top-0 z-30 border-b bg-white">
@@ -329,7 +336,7 @@ export default function ViewDoc() {
                     });
                     return (
                       <div className="text-sm text-gray-700" style={{ color: "white" }}>
-                        <div><span className="font-medium">By:</span> {r.byUser?.username || "(unknown)"} <span className="text-gray-400">•</span> {at}</div>
+                        <div><span className="font-medium">By:</span> {displayUsername(r.byUser)} <span className="text-gray-400">•</span> {at}</div>
                         <div className="mt-1">
                           <span className="font-medium">Status:</span> {r.status}
                         </div>
@@ -367,7 +374,7 @@ export default function ViewDoc() {
                   <Meta 
                     label="Author" 
                     // value={doc.author}
-                    value={doc.createdByUser?.username || "Unknown"}
+                    value={displayUsername(doc.createdByUser)}
                   />
                   <Meta 
                     label="Recipient" 

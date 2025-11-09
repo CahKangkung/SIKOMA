@@ -1,10 +1,9 @@
 // src/pages/SettingOrganizationPage.jsx
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar.jsx";
 import Header from "../../components/Header.jsx";
 import { ArrowLeft } from "lucide-react";
-import { organizations, userCurrentOrganizations } from "../../data/DummyData";
 
 export default function SettingOrganizationPage() {
     const {id} = useParams();
@@ -89,7 +88,10 @@ export default function SettingOrganizationPage() {
                 alert(`❌ Organization "${data.name}" deleted successfully.`);
                 navigate("/home");
             } else {
-                throw new Error(`Failed to delete organization: ${data.message}`);
+                const errorMsg = data.error || data.message || "Failed to delete organization";                
+                alert(`❌ ${errorMsg}`);
+                console.error("Delete failed:", data);
+                setShowConfirm(false);
             }
         } catch (err) {
             console.error("Error deleting organization:", err);
