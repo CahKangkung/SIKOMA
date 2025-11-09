@@ -1,24 +1,59 @@
-// src/pages/DashboardPage.jsx
+// src/pages/orgDashboard/DashboardPage.jsx
 import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
+// import { getOrgStats } from "../../Services/api";
+import { XCircle } from "lucide-react";
 
 export default function DashboardPage() {
   const { id } = useParams();
-  const { user, loading }= useUser();
+  const { setCurrentOrgId } = useUser();
+  const { user, loading  }= useUser();
   const [org, setOrg] = useState(null);
   const navigate = useNavigate();
   const [loadingPage, setLoadingPage] = useState(false);
 
   const userId = user ? (user.id || user._id) : null;
 
+  // const [stats, setStats] = useState({
+  //   uploaded: 0,
+  //   onReview: 0,
+  //   approved: 0,
+  //   rejected: 0,
+  // });
+
+  // popup state
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupConfig, setPopupConfig] = useState({
+    type: "error",
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
+
+  const showNotification = (type, title, message, onConfirm = null) => {
+    setPopupConfig({ type, title, message, onConfirm });
+    setShowPopup(true);
+  };
+
+  const closePopup = () => {
+    setShowPopup(false);
+    if (popupConfig.onConfirm) {
+      setTimeout(() => {
+        popupConfig.onConfirm();
+      }, 100);
+    }
+  };
+
   useEffect(() => {
+    // if (!id || !userId) return;
     const fetchOrg = async () => {
       
       try {
         setLoadingPage(true);
+
         console.log("🔍 Fetching organization:", id);
         console.log("👤 Current user:", user);
 
@@ -44,23 +79,57 @@ export default function DashboardPage() {
         console.log("🆔 User ID:", userId);
 
         if (!isMember && !isCreator) {
-          alert("You are not authorized to access this organization");
-          navigate("/home/current");
+          // alert("You are not authorized to access this organization");
+          // navigate("/home/current");
+          showNotification(
+            "error",
+            "Access Denied",
+            "You are not authorized to access this organization.",
+            () => navigate("/home/current")
+          );
           return;
         }
 
         setOrg(data);
       } catch (err) {
         console.error("Error fetching organization data: ", err);
-        navigate("/home/current");
+        // navigate("/home/current");
+        showNotification(
+          "error",
+          "Failed to Load Organization",
+          err.message || "Unable to load organization data. Redirecting...",
+          () => navigate("/home/current")
+        );
       } finally {
         setLoadingPage(false);
       }
     };
 
     fetchOrg();
-    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user, navigate]);
+
+  // useEffect(() => {
+  //   if (!id || !userId) return;
+
+  //   let cancelled = false;
+  //   (async () => {
+  //     try {
+  //       const data = await getOrgStats(id);
+  //       if (!cancelled) setStats(data.stats || {});
+  //     } catch (e) {
+  //       if (!cancelled) console.error("Failed to fetch stats:", e);
+  //     }
+  //   })();
+
+  //   return () => {
+  //     cancelled = true;
+  //   };
+  // }, [id, userId]);
+
+  // useEffect(() => {
+  //   if (id) setCurrentOrgId(id);
+  // }, [id, setCurrentOrgId]);
 
   if (loading || loadingPage) {
     return (
@@ -73,47 +142,75 @@ export default function DashboardPage() {
     );
   }
 
-
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar orgId={id} />
+    <>
+      <div className="flex min-h-screen bg-gray-50">
+        {/* Sidebar */}
+        <Sidebar orgId={id} />
 
-      {/* Main content */}
-      <div className="flex-1 ml-64 flex flex-col">
-        <Header title="Dashboard" />
+        {/* Main content */}
+        <div className="flex-1 ml-64 flex flex-col">
+          <Header title="Dashboard" />
 
-        <main className="p-8">
-          <h3 className="text-xl font-semibold mb-6 text-gray-700">
-            Organization:
-          </h3>
-          <h1 className="text-3xl font-bold mb-8 text-black">
-            {org?.name || "Loading..."}
-          </h1>
+          <main className="p-8">
+            <h3 className="text-xl font-semibold mb-6 text-gray-700">
+              Organization:
+            </h3>
+            <h1 className="text-3xl font-bold mb-8 text-black">
+              {org?.name || "Loading..."}
+            </h1>
 
-          <h2 className="text-lg font-semibold mb-2">Organization Info</h2>
-          {org ? (
-            <>
-              <p><strong>Author: </strong>{org.createdBy?.username}</p>
-              <p><strong>Total Members: </strong>{org.members.length}</p>
-              <p><strong>Your Role:</strong> {
-                  org.members.find((m) => m.user._id === userId)?.role || "Unknown"
-              }</p>
-            </>
-          ) : (
-            <p className="text-gray-500">Loading organization info...</p>
-          )}
-          
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card title="Uploaded" value="50" color="bg-blue-100" text="text-blue-700" />
-            <Card title="On Review" value="30" color="bg-yellow-100" text="text-yellow-700" />
-            <Card title="Approved" value="20" color="bg-green-100" text="text-green-700" />
-            <Card title="Rejected" value="10" color="bg-red-100" text="text-red-700" />
-          </div>
-        </main>
+            <h2 className="text-lg font-semibold mb-2">Organization Info</h2>
+            {org ? (
+              <>
+                <p><strong>Author: </strong>{org.createdBy?.username}</p>
+                <p><strong>Total Members: </strong>{org.members.length}</p>
+                <p><strong>Your Role:</strong> {
+                    org.members.find((m) => m.user._id === userId)?.role || "Unknown"
+                }</p>
+              </>
+            ) : (
+              <p className="text-gray-500">Loading organization info...</p>
+            )}
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card title="Uploaded" value={stats.uploaded ?? 0} color="bg-blue-100" text="text-blue-700" />
+              <Card title="On Review" value={stats.onReview ?? 0} color="bg-yellow-100" text="text-yellow-700" />
+              <Card title="Approved" value={stats.approved ?? 0} color="bg-green-100" text="text-green-700" />
+              <Card title="Rejected" value={stats.rejected ?? 0} color="bg-red-100" text="text-red-700" />
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    
+    {/* Popup Notification */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-[90%] max-w-md">
+            <div className="flex flex-col items-center text-center">
+              {/* Icon */}
+              <XCircle className="w-16 h-16 text-red-500 mb-4" />
+
+              {/* Title */}
+              <h2 className="text-xl font-bold text-[#23358B] mb-2">
+                {popupConfig.title}
+              </h2>
+
+              {/* Message */}
+              <p className="text-gray-700 mb-6">{popupConfig.message}</p>
+
+              {/* Button */}
+              <button
+                onClick={closePopup}
+                className="px-8 py-2 rounded-md text-white font-semibold transition-all bg-red-600 hover:bg-red-700"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+   </>
   );
 }
 

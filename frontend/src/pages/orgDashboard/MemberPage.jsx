@@ -1,14 +1,15 @@
-// src/pages/MemberPage.jsx
+// src/pages/orgDashboard/MemberPage.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 import { useUser } from "../../context/UserContext";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Search, ShieldCheck, Trash2, Check, X } from "lucide-react";
+import { users, organizations, joinRequests } from "../../data/DummyData";
 
 export default function MemberPage() {
   const { id } = useParams();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const { user, loading } = useUser();
   const [org, setOrg] = useState("");
   const [member, setMember] = useState([]);
@@ -193,7 +194,7 @@ export default function MemberPage() {
           alert(`Error: ${err.message}`);
       }
   };
-  
+
   // Ambil user aktif dari localStorage
   // const currentUser =
   //   JSON.parse(localStorage.getItem("currentUser")) || users[0];

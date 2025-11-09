@@ -1,9 +1,9 @@
-// src/pages/AddDoc.jsx
+// src/pages/orgDashboard/AddDoc.jsx
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { upload, createDocument, summarizePreview, getOrgMembers } from "../../Services/api";
 import Sidebar from "../../components/SideBar";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 
 // const RECIPIENTS = [
@@ -34,6 +34,7 @@ export default function AddDoc() {
   const [loadingAI, setLoadingAI] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // popup state
   const [showPopup, setShowPopup] = useState(false);
   const [popupConfig, setPopupConfig] = useState({
     type: "success", // "success" | "error" | "warning"
@@ -50,7 +51,9 @@ export default function AddDoc() {
   const closePopup = () => {
     setShowPopup(false);
     if (popupConfig.onConfirm) {
-      popupConfig.onConfirm();
+      setTimeout(() => {
+        popupConfig.onConfirm();
+      }, 100);
     }
   };
   
@@ -85,6 +88,7 @@ export default function AddDoc() {
     }
 
     fetchMember();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user?.id, userLoading]);
 
   const onPickFile = (e) => {
@@ -93,11 +97,7 @@ export default function AddDoc() {
   };
 
   const doSummarize = async () => {
-    if (!file) {
-      showNotification("warning", "No File Selected", "Please select a file first.");
-      return;
-    };
-
+    if (!file) return alert("Pilih file terlebih dahulu.");
     try {
       setLoadingAI(true);
       const fd = new FormData();
@@ -112,7 +112,8 @@ export default function AddDoc() {
         // setNotes(data.summary);
         // setNotes(data.summary || "");
       } else {
-         showNotification(
+        // alert("Ringkasan tidak tersedia saat ini. Anda tetap bisa submit dokumen.");
+        showNotification(
           "warning", 
           "Summary Unavailable", 
           "Summary is not available at this time. You can still submit the document."
@@ -120,6 +121,7 @@ export default function AddDoc() {
       }
     } catch (e) {
       console.error(e);
+      // alert("Gagal generate ringkasan.");
       showNotification("error", "Generation Failed", "Failed to generate summary.");
     } finally {
       setLoadingAI(false);
@@ -130,21 +132,13 @@ export default function AddDoc() {
     e.preventDefault();
     if (submitting) return; 
 
-    if (!title.trim()) {
-      showNotification("warning", "Missing Information", "Please fill in the Document Title.");
-      return;
-    }
-    if (!file) {
-      showNotification("warning", "Missing Information", "Please upload a file.");
-      return;
-    }
+    if (!title.trim()) return alert("Isi Document Title.");
+    if (!file) return alert("Silakan unggah file.");
     // if (!recipient) return alert("Pilih recipient.");
-    if (!due) {
-      showNotification("warning", "Missing Information", "Please fill in the Due Date.");
-      return;
-    }
+    if (!due) return alert("Isi Due Date.");
 
     if (recipientsMode === "specific" && selectedRecipients.length === 0) {
+      // return alert("Pilih minimal satu member sebagai recipient.");
       showNotification(
         "warning", 
         "Missing Information", 
@@ -179,10 +173,8 @@ export default function AddDoc() {
 
       await createDocument(newDoc);
 
-      // ------KODE LAMA-------
       // alert("✅ Dokumen berhasil diunggah dan disimpan!");
       // navigate(`/${id}/manage-document`);
-
       showNotification(
         "success", 
         "Success", 
@@ -207,7 +199,8 @@ export default function AddDoc() {
    
     } catch (e2) {
       console.error(e2);
-      showNotification("error", "Submission Failed", "Failed to submit document.");
+      // alert("Gagal submit dokumen.");
+      showNotification("error", "Submission Failed", "Failed to submit document. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -441,6 +434,50 @@ export default function AddDoc() {
           </form>
         </main>
       </div>
+
+       {/* Popup Notification */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-[90%] max-w-md">
+            <div className="flex flex-col items-center text-center">
+              {/* Icon */}
+              {popupConfig.type === "success" && (
+                <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+              )}
+              {popupConfig.type === "error" && (
+                <XCircle className="w-16 h-16 text-red-500 mb-4" />
+              )}
+              {popupConfig.type === "warning" && (
+                <AlertCircle className="w-16 h-16 text-yellow-500 mb-4" />
+              )}
+
+              {/* Title */}
+              <h2 className="text-xl font-bold text-[#23358B] mb-2">
+                {popupConfig.title}
+              </h2>
+
+              {/* Message */}
+              <p className="text-gray-700 mb-6">
+                {popupConfig.message}
+              </p>
+
+              {/* Button */}
+              <button
+                onClick={closePopup}
+                className={`px-8 py-2 rounded-md text-white font-semibold transition-all ${
+                  popupConfig.type === "success"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : popupConfig.type === "error"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-yellow-600 hover:bg-yellow-700"
+                }`}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
