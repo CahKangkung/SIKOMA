@@ -1,7 +1,7 @@
 // src/routes/search.routes.js
 import { Router } from "express";
 import multer from "multer";
-import { ObjectId } from "mongodb"; // post commit 3
+import { ObjectId } from "mongodb";
 import { getDocumentDB } from "../services/db.js";
 import { letterChunks } from "../models/letterChunks.js";
 import { embedText, generateAnswer } from "../services/gemini.js";
@@ -10,67 +10,70 @@ import { transcribeAudio } from "../services/transcribe.js";
 const router = Router();
 const upload = multer();
 
-router.post("/search", async (req, res, next) => {
-  // const { query, topK = 8, withAnswer = false, threshold = 0.75 } = req.body;
-  const { query, topK = 8, withAnswer = false, threshold = 0.75, organizationId } = req.body; // post commit 3
+/** Build filter untuk vectorSearch pada koleksi chunks.
+ *  Saat ini hanya memfilter by organizationId (sesuai "post commit 3").
+ *  Jika organizationId bukan ObjectId valid, pakai string apa adanya.
+ */
+function buildAccessFilter(orgId /*, user */) {
+  if (!orgId) return {};
+  const orgObjId = ObjectId.isValid(orgId) ? new ObjectId(orgId) : orgId;
+  return { organizationId: orgObjId };
+}
 
-  // 🔹 1. Buat embedding dari teks query
+/** Jalankan vector search pada koleksi letterChunks. */
+async function runVectorSearch({ db, query, topK = 8, threshold = null, filter = {} }) {
+  const chunksCol = letterChunks(db);
   const qvec = await embedText(query);
 
-  // 🔹 2. Akses koleksi letterChunks
-  const db = await getDocumentDB();
-  const ccol = letterChunks(db);
+  const pipelineLimit = Math.max(20, topK * 2);
+  const numCandidates = Math.max(40, topK * 6);
 
-  const matchStage = organizationId ? { organizationId: new ObjectId(organizationId) } : {}; // post commit 3
-
-  // Catatan:
-  // - score dari $meta biasanya "semakin besar = semakin mirip" (cosine similarity).
-  // - Untuk kompat, kita filter threshold di JS setelah aggregation.
-  const pipeline = [
-    {
-      $vectorSearch: {
-        index: "letter_chunks__vsearch",
-        path: "embedding",
-        queryVector: qvec,
-        numCandidates: Math.max(40, topK * 6),
-        limit: Math.max(20, topK * 2),
-        filter: matchStage // post commit 3
-      }
+  const vectorStage = {
+    $vectorSearch: {
+      index: "letter_chunks__vsearch",
+      path: "embedding",
+      queryVector: qvec,
+      numCandidates,
+      limit: pipelineLimit,
+      ...(filter && Object.keys(filter).length ? { filter } : {}),
     },
-    // simpan score di field biasa supaya aman dipakai tahap lanjut
+  };
+
+  const pipeline = [
+    vectorStage,
     { $addFields: { score: { $meta: "vectorSearchScore" } } },
     {
       $project: {
         _id: 0,
-        // ⚠️ Pastikan field di chunks yang menunjuk dokumen induk konsisten dengan yang dipakai di listDocs
-        // Misal di chunks kamu simpan parent id di "docId" atau "letterId". Sesuaikan baris di bawah.
-        docId: "$docId", // ganti ke "$letterId" kalau nama field parent di chunk = letterId
+        // ganti ke "$letterId" kalau field parent di chunk adalah "letterId"
+        docId: "$docId",
         text: 1,
         page: 1,
         score: 1,
       },
     },
     { $sort: { score: -1 } },
-    { $limit: limit },
+    { $limit: pipelineLimit },
   ];
 
   let hits = await chunksCol.aggregate(pipeline).toArray();
 
-  // Filter threshold di aplikasi (hindari $match langsung ke $meta)
-  if (typeof threshold === "number") {
-    // asumsi score = similarity (semakin besar semakin mirip)
-    hits = hits.filter((h) => Number(h.score) >= threshold);
+  if (Number.isFinite(Number(threshold))) {
+    hits = hits.filter((h) => Number(h.score) >= Number(threshold));
   }
 
   // Ambil topK final
-  hits = hits.slice(0, topK);
+  hits = hits.slice(0, Number(topK) || 8);
 
   return { qvec, hits };
 }
 
+// ---- TEXT SEARCH ----
+// Jika router di-mount: app.use("/search", router)
+// endpoint final: POST /search
 router.post("/", async (req, res, next) => {
   try {
-    const { orgId, query, topK = 8, withAnswer = false, threshold = null } = req.body;
+    const { orgId, organizationId, query, topK = 8, withAnswer = false, threshold = null } = req.body;
 
     if (!req.user || !(req.user.id || req.user._id)) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -80,7 +83,7 @@ router.post("/", async (req, res, next) => {
     }
 
     const db = await getDocumentDB();
-    const filter = orgId ? buildAccessFilter(orgId, req.user) : undefined;
+    const filter = buildAccessFilter(orgId || organizationId /*, req.user */);
 
     const { qvec, hits } = await runVectorSearch({
       db,
@@ -94,7 +97,7 @@ router.post("/", async (req, res, next) => {
 
     res.json({
       query,
-      qdim: qvec?.length ?? 0,
+      qdim: Array.isArray(qvec) ? qvec.length : 0,
       topK: Number(topK) || 8,
       threshold: Number.isFinite(Number(threshold)) ? Number(threshold) : null,
       hitCount: hits.length,
@@ -106,18 +109,28 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-router.post("/search/voice", upload.single("audio"), async (req, res, next) => {
+// ---- VOICE SEARCH ----
+// endpoint final: POST /search/voice
+router.post("/voice", upload.single("audio"), async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "audio file required (field name: 'audio')" });
+    if (!req.file) {
+      return res.status(400).json({ error: "audio file required (field name: 'audio')" });
+    }
 
-    let { orgId, topK = 8, threshold = null, withAnswer = false } =
+    // Query bisa datang dari querystring (mis. curl) atau body (frontend)
+    let { orgId, organizationId, topK = 8, threshold = null, withAnswer = false } =
       req.query?.topK ? req.query : req.body;
+
     topK = Number(topK) || 8;
     threshold = Number.isFinite(Number(threshold)) ? Number(threshold) : null;
     withAnswer = String(withAnswer) === "true" || withAnswer === true;
 
     const mime = req.file.mimetype || "audio/webm";
-    const transcript = await transcribeAudio(req.file.buffer, mime, req.file.originalname || "audio");
+    const transcript = await transcribeAudio(
+      req.file.buffer,
+      mime,
+      req.file.originalname || "audio"
+    );
     const query = (transcript || "").trim();
 
     if (!query) {
@@ -139,7 +152,7 @@ router.post("/search/voice", upload.single("audio"), async (req, res, next) => {
     }
 
     const db = await getDocumentDB();
-    const filter = orgId ? buildAccessFilter(orgId, req.user) : undefined;
+    const filter = buildAccessFilter(orgId || organizationId /*, req.user */);
 
     const { qvec, hits } = await runVectorSearch({
       db,
@@ -154,14 +167,14 @@ router.post("/search/voice", upload.single("audio"), async (req, res, next) => {
       try {
         answer = await generateAnswer(query, hits);
       } catch {
-        answer = null;
+        answer = null; // jangan patahkan seluruh response hanya karena answer gagal
       }
     }
 
     res.json({
       mode: "voice",
       transcript: query,
-      qdim: qvec.length,
+      qdim: Array.isArray(qvec) ? qvec.length : 0,
       topK,
       threshold,
       hitCount: hits.length,

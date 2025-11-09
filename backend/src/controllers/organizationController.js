@@ -497,49 +497,9 @@ export const getOrgDashboardStats = async (req, res) => {
     }
     const lettersCol = db.collection("letters");
 
-    // ---- Match filter (sesuai ketentuan) ----
-    const baseMatch = {
-      organizationId: orgObjId,
-      $or: [
-        { createdBy: userIdStr },
-        ...(userObjId ? [{ createdBy: userObjId }] : []),
-        { recipientsMode: "all" },
-        { recipients: userIdStr },
-        ...(userObjId ? [{ recipients: userObjId }] : []),
-        { recipients: { $in: [userIdStr] } },
-        ...(userObjId ? [{ recipients: { $in: [userObjId] } }] : []),
-      ],
-    };
-
-    console.log(where, "orgId:", id, "user:", userIdStr);
-    console.log(where, "baseMatch:", JSON.stringify(baseMatch));
-
-    // ---- Aggregation ----
-    const byStatus = await lettersCol
-      .aggregate([
-        { $match: baseMatch },
-        { $group: { _id: "$status", count: { $sum: 1 } } },
-      ])
-      .toArray();
-
-    console.log(where, "byStatus:", byStatus);
-
-    // ---- Map counts ----
-    const counts = { uploaded: 0, onReview: 0, approved: 0, rejected: 0 };
-    const mapKey = (k) => {
-      const norm = String(k ?? "").toLowerCase();
-      if (["on_review", "review", "onreview", "pending_review", "on review"].includes(norm)) return "onReview";
-      if (["approved", "approve", "accepted"].includes(norm)) return "approved";
-      if (["rejected", "reject", "declined"].includes(norm)) return "rejected";
-      if (["uploaded", "upload", "draft", "new"].includes(norm)) return "uploaded";
-      return null;
-    };
-    for (const row of byStatus) {
-      const key = mapKey(row?._id);
-      if (key) counts[key] = row?.count ?? 0;
-    }
-
-    // ---- Organization info ----
+    // ------------------------------------------------------------------
+    // CHANGED: Ambil info organisasi & tentukan role SEBELUM membangun baseMatch
+    // ------------------------------------------------------------------
     const org = await Organization.findById(orgObjId)
       .populate("createdBy", "username email")
       .populate("members.user", "username email")
@@ -558,6 +518,61 @@ export const getOrgDashboardStats = async (req, res) => {
       if (me?.role) role = me.role;
     }
 
+    // ------------------------------------------------------------------
+    // CHANGED: Bangun baseMatch berdasarkan role
+    // - Admin: lihat semua dokumen di organisasi (tanpa filter uploader/recipient)
+    // - Member: filter seperti sebelumnya (saya pengunggah / saya penerima / publik ke org)
+    //   Disederhanakan agar tidak duplikatif & lebih aman untuk array/scalar
+    // ------------------------------------------------------------------
+    let baseMatch;
+    const idCandidates = [userIdStr, userObjId].filter(Boolean); // ["stringId", ObjectId] jika ada
+
+    if (role === "admin") {
+      baseMatch = {
+        organizationId: orgObjId,
+        // Jika ada soft-delete/arsip di skema Anda, pertimbangkan menambah filter di sini.
+        // deletedAt: { $exists: false },
+      };
+    } else {
+      baseMatch = {
+        organizationId: orgObjId,
+        $or: [
+          { createdBy: { $in: idCandidates } },
+          { recipients: { $in: idCandidates } }, // cocok untuk field array ataupun scalar
+          { recipientsMode: "all" },              // visibilitas ke seluruh organisasi
+        ],
+      };
+    }
+
+    console.log(where, "orgId:", id, "user:", userIdStr, "role:", role);
+    console.log(where, "baseMatch:", JSON.stringify(baseMatch));
+
+    // ---- Aggregation (tidak berubah) ----
+    const byStatus = await lettersCol
+      .aggregate([
+        { $match: baseMatch },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ])
+      .toArray();
+
+    console.log(where, "byStatus:", byStatus);
+
+    // ---- Map counts (tetap) ----
+    const counts = { uploaded: 0, onReview: 0, approved: 0, rejected: 0 };
+    const mapKey = (k) => {
+      const norm = String(k ?? "").toLowerCase();
+      if (["on_review", "review", "onreview", "pending_review", "on review"].includes(norm)) return "onReview";
+      if (["approved", "approve", "accepted"].includes(norm)) return "approved";
+      if (["rejected", "reject", "declined"].includes(norm)) return "rejected";
+      if (["uploaded", "upload", "draft", "new"].includes(norm)) return "uploaded";
+      return null;
+    };
+    for (const row of byStatus) {
+      const key = mapKey(row?._id);
+      if (key) counts[key] = row?.count ?? 0;
+    }
+
+    // ---- Response payload (role sudah dihitung di atas) ----
     const payload = {
       organization: {
         id: String(org._id),

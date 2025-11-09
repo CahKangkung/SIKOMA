@@ -5,8 +5,6 @@ import { useUser } from "../context/UserContext";
 import Sidebar from "../components/Sidebar";
 import Header from "../components/Header";
 import { ArrowLeft, User as UserIcon, Eye, X } from "lucide-react";
-import Sidebar from "../components/Sidebar";
-import Header from "../components/Header";
 
 export default function AccountSettingsPage() {
   const navigate = useNavigate();
