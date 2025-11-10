@@ -1,7 +1,7 @@
 // src/pages/SettingOrganizationPage.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Sidebar from "../../components/Sidebar.jsx";
+import Sidebar from "../../components/SideBar.jsx";
 import Header from "../../components/Header.jsx";
 import { ArrowLeft } from "lucide-react";
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useUser } from "../context/UserContext";
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../components/SideBar";
 import Header from "../components/Header";
 import { ArrowLeft, User as UserIcon, Eye, X } from "lucide-react";
 
