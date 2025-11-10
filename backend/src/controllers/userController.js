@@ -107,7 +107,7 @@ export const getMe = async (req, res) => {
 export const googleLogin = (req, res) => {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
   const options = {
-    redirect_uri: "http://localhost:8080/api/auth/google/callback",
+    redirect_uri: `${process.env.CLIENT_URL}/api/auth/google/callback`,
     client_id: process.env.GOOGLE_CLIENT_ID,
     access_type: "offline",
     response_type: "code",
@@ -131,7 +131,7 @@ export const googleCallback = async (req, res) => {
       code,
       client_id: process.env.GOOGLE_CLIENT_ID,
       client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      redirect_uri: "http://localhost:8080/api/auth/google/callback",
+      redirect_uri: `${process.env.CLIENT_URL}/api/auth/google/callback`,
       grant_type: "authorization_code",
     };
 
@@ -153,7 +153,7 @@ export const googleCallback = async (req, res) => {
 
     // post commit 4
     if (user.isDeleted) {
-      return res.redirect("http://localhost:5173/login?error=account_deleted");
+      return res.redirect(`${process.env.CLIENT_URL}/login?error=account_deleted`);
     } // batas post commit 4
 
     const appToken = jwt.sign(
@@ -169,11 +169,11 @@ export const googleCallback = async (req, res) => {
       maxAge: 3600000,
     });
 
-    // res.redirect("http://localhost:5173/home"); post commit 4 dikomen
-    res.redirect("http://localhost:5173/auth/callback"); // post commit 4
+    // res.redirect(`${process.env.CLIENT_URL}/home`); post commit 4 dikomen
+    res.redirect(`${process.env.CLIENT_URL}/auth/callback`); // post commit 4
   } catch (error) {
     console.error("Failed to login with Google", error);
-    res.redirect("http://localhost:5173/login?error=true");
+    res.redirect(`${process.env.CLIENT_URL}/login?error=true`);
   }
 };
 
