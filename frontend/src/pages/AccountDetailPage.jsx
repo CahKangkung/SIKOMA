@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import { useUser } from "../context/UserContext";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, User } from "lucide-react";
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../components/SideBar";
 import Header from "../components/Header";
 
 export default function AccountDetailPage() {
