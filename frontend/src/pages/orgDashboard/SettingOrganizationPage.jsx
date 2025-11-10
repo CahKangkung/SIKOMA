@@ -3,226 +3,326 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/SideBar.jsx";
 import Header from "../../components/Header.jsx";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 
 export default function SettingOrganizationPage() {
-    const {id} = useParams();
-    const navigate = useNavigate();
-    const [loadingData, setLoadingData] = useState(false);
-    const [org, setOrg] = useState({ name: "", description: "" });
-    const [showConfirm, setShowConfirm] = useState(false);
-    const [confirmText, setConfirmText] = useState("");
-  
-    useEffect(() => {
-        const fetchOrgData = async () => {
-            try {
-                setLoadingData(true);
-                const res = await fetch(`http://localhost:8080/api/organization/${id}`, {
-                    credentials: "include"
-                });
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [loadingData, setLoadingData] = useState(false);
+  const [org, setOrg] = useState({ name: "", description: "" });
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
 
-                const data = await res.json();
+  // popup notification state
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupConfig, setPopupConfig] = useState({
+    type: "success", // "success" | "error" | "warning"
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
 
-                if (res.ok) {
-                    setOrg({ name: data.name, description: data.description || "" }); 
-                } else {
-                    throw new Error(`Failed to fetch organization data: ${data.message}`);
-                }       
-            } catch (err) {
-                console.error("Error fetching organization:", err);
-            } finally {
-                setLoadingData(false);
-            }
-            
-        }
-        fetchOrgData();
-    }, [id]);
+  const showNotification = (type, title, message, onConfirm = null) => {
+    setPopupConfig({ type, title, message, onConfirm });
+    setShowPopup(true);
+  };
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setOrg((prev) => ({ ...prev, [name]: value}));
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        try {
-            const res = await fetch(`http://localhost:8080/api/organization/${id}/edit`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                credentials: "include",
-                body: JSON.stringify(org)
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                alert(`✅ Organization updated successfully!`);
-                navigate(`/${id}/organization`);
-            } else {
-                throw new Error(`Failed to update organization data: ${data.message}`);
-            }
-
-        } catch (err) {
-            console.error("Error updating organization:", err);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (confirmText.toLowerCase() !== "confirm") {
-            alert("⚠️ Please type 'confirm' to proceed with deletion.");
-            return;
-        }
-
-        try {
-            const res = await fetch(`http://localhost:8080/api/organization/${id}/delete`, {
-                method: "DELETE",
-                credentials: "include"
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                alert(`❌ Organization "${data.name}" deleted successfully.`);
-                navigate("/home");
-            } else {
-                const errorMsg = data.error || data.message || "Failed to delete organization";                
-                alert(`❌ ${errorMsg}`);
-                console.error("Delete failed:", data);
-                setShowConfirm(false);
-            }
-        } catch (err) {
-            console.error("Error deleting organization:", err);
-        }
+  const closePopup = () => {
+    setShowPopup(false);
+    if (popupConfig.onConfirm) {
+      setTimeout(() => {
+        popupConfig.onConfirm();
+      }, 100);
     }
-    
-    if (loadingData) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
-                <div className="text-center">
-                <div className="text-lg text-gray-600 mb-2">Loading...</div>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
-                </div>
-            </div>
+  };
+
+  useEffect(() => {
+    const fetchOrgData = async () => {
+      try {
+        setLoadingData(true);
+        const res = await fetch(
+          `http://localhost:8080/api/organization/${id}`,
+          {
+            credentials: "include",
+          }
         );
+
+        const data = await res.json();
+
+        if (res.ok) {
+          setOrg({ name: data.name, description: data.description || "" });
+        } else {
+          throw new Error(`Failed to fetch organization data: ${data.message}`);
+        }
+      } catch (err) {
+        console.error("Error fetching organization:", err);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    fetchOrgData();
+  }, [id]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setOrg((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      const res = await fetch(
+        `http://localhost:8080/api/organization/${id}/edit`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify(org),
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // alert(`✅ Organization updated successfully!`);
+        // navigate(`/${id}/organization`);
+        showNotification(
+          "success",
+          "Organization Updated",
+          "Organization has been successfully updated!",
+          () => navigate(`/${id}/organization`)
+        );
+      } else {
+        throw new Error(`Failed to update organization data: ${data.message}`);
+      }
+    } catch (err) {
+      console.error("Error updating organization:", err);
+      showNotification(
+        "error",
+        "Update Failed",
+        err.message || "Failed to update organization. Please try again."
+      );
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirmText.toLowerCase() !== "confirm") {
+      //   alert("⚠️ Please type 'confirm' to proceed with deletion.");
+      showNotification(
+        "warning",
+        "Invalid Confirmation",
+        "Please type 'confirm' to proceed with deletion."
+      );
+      return;
     }
 
+    try {
+      const res = await fetch(
+        `http://localhost:8080/api/organization/${id}/delete`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        // alert(`❌ Organization "${data.name}" deleted successfully.`);
+        // navigate("/home");
+        showNotification(
+          "success",
+          "Organization Deleted",
+          `Organization "${data.name}" has been successfully deleted.`,
+          () => navigate("/home")
+        );
+      } else {
+        const errorMsg = data?.error || data?.message || "Failed to delete organization";
+        // alert(`❌ ${errorMsg}`);
+        console.error("Delete failed:", data);
+        setShowConfirm(false);
+        showNotification("error", "Delete Failed", errorMsg);
+      }
+    } catch (err) {
+      console.error("Error deleting organization:", err);
+      showNotification(
+        "error",
+        "Delete Failed",
+        err?.message || "Failed to delete organization. Please try again."
+      );
+    }
+  };
+
+  if (loadingData) {
     return (
-        <div className="flex min-h-screen bg-[#F8FAFC]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="text-lg text-gray-600 mb-2">Loading...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#23358B] mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex min-h-screen bg-[#F8FAFC]">
         {/* Sidebar */}
         <Sidebar />
 
         {/* Main Content */}
         <div className="flex-1 ml-64 flex flex-col">
-            <Header title="Organization" />
+          <Header title="Organization" />
 
-            <main className="p-10 flex-1">
+          <main className="p-10 flex-1">
             {/* Back Button */}
             <button
-                onClick={() => navigate(-1)}
-                className="flex items-center gap-2 text-[#23358B] font-medium mb-6 hover:underline"
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-[#23358B] font-medium mb-6 hover:underline"
             >
-                <ArrowLeft size={18} />
-                Settings
+              <ArrowLeft size={18} />
+              Settings
             </button>
 
             {/* Form Section */}
             <div>
-                <form onSubmit={handleSubmit} className="space-y-8">
+              <form onSubmit={handleSubmit} className="space-y-8">
                 {/* Organization Name */}
                 <div>
-                    <label className="block text-base font-semibold text-[#23358B] mb-2">
+                  <label className="block text-base font-semibold text-[#23358B] mb-2">
                     Organization Name
-                    </label>
-                    <input
+                  </label>
+                  <input
                     type="text"
                     name="name"
                     placeholder="Enter organization name"
                     className="bg-white w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#23358B] outline-none text-gray-800 transition-all duration-200"
                     value={org.name}
                     onChange={handleChange}
-                    />
+                  />
                 </div>
 
                 {/* Organization Description */}
                 <div>
-                    <label className="block text-base font-semibold text-[#23358B] mb-2">
+                  <label className="block text-base font-semibold text-[#23358B] mb-2">
                     Organization Description
-                    </label>
-                    <textarea
+                  </label>
+                  <textarea
                     name="description"
                     rows={5}
                     placeholder="Write a short description about your organization..."
                     className="bg-white w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-[#23358B] outline-none text-gray-800 resize-none transition-all duration-200"
                     value={org.description}
                     onChange={handleChange}
-                    />
+                  />
                 </div>
 
                 {/* Buttons */}
                 <div className="flex justify-end gap-4 pt-2">
-                    <button
+                  <button
                     type="button"
                     onClick={() => setShowConfirm(true)}
                     className="px-6 py-2 rounded-md bg-[#FF5C5C] text-white font-semibold shadow-sm hover:shadow-md hover:opacity-90 transition-all duration-200"
-                    >
-                    Delete
-                    </button>
-                    <button
+                  >
+                    Delete Organization
+                  </button>
+                  <button
                     type="submit"
                     className="px-6 py-2 rounded-md bg-[#133962] text-white font-semibold shadow-sm hover:shadow-md hover:opacity-90 transition-all duration-200"
-                    >
+                  >
                     Submit
-                    </button>
+                  </button>
                 </div>
-                </form>
+              </form>
             </div>
-            </main>
+          </main>
         </div>
 
         {/* Delete Confirmation Popup */}
         {showConfirm && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
             <div className="bg-white rounded-xl shadow-xl p-8 w-[90%] max-w-md animate-scale-in">
-                <h2 className="text-2xl font-bold text-[#23358B] text-center mb-2">
+              <h2 className="text-2xl font-bold text-[#23358B] text-center mb-2">
                 Delete Organization
-                </h2>
-                <p className="text-center text-gray-600 text-sm mb-4">
+              </h2>
+              <p className="text-center text-gray-600 text-sm mb-4">
                 To permanently delete your organization please type{" "}
                 <strong>"confirm"</strong>
                 <br />
                 <span className="text-red-600 font-semibold">
-                    Warning: This action is permanent.
+                  Warning: This action is permanent.
                 </span>
-                </p>
+              </p>
 
-                <input
+              <input
                 type="text"
                 placeholder="confirm"
                 className="w-full border rounded-md px-3 py-2 mb-6 focus:ring-2 focus:ring-red-500 outline-none transition-all duration-200"
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
-                />
+              />
 
-                <div className="flex justify-end gap-4">
+              <div className="flex justify-end gap-4">
                 <button
-                    onClick={() => setShowConfirm(false)}
-                    className="px-5 py-2 rounded-md bg-gray-300 text-gray-700 font-semibold hover:bg-gray-400 transition-all duration-200"
+                  onClick={() => setShowConfirm(false)}
+                  className="px-5 py-2 rounded-md bg-gray-300 text-gray-700 font-semibold hover:bg-gray-400 transition-all duration-200"
                 >
-                    Cancel
+                  Cancel
                 </button>
                 <button
-                    onClick={handleDelete}
-                    className="px-5 py-2 rounded-md bg-red-600 text-white font-semibold hover:opacity-90 hover:shadow-md transition-all duration-200"
+                  onClick={handleDelete}
+                  className="px-5 py-2 rounded-md bg-red-600 text-white font-semibold hover:opacity-90 hover:shadow-md transition-all duration-200"
                 >
-                    Delete
+                  Delete
                 </button>
-                </div>
+              </div>
             </div>
-            </div>
+          </div>
         )}
+      </div>
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-[90%] max-w-md">
+            <div className="flex flex-col items-center text-center">
+              {/* Icon */}
+              {popupConfig.type === "success" && (
+                <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+              )}
+              {popupConfig.type === "error" && (
+                <XCircle className="w-16 h-16 text-red-500 mb-4" />
+              )}
+              {popupConfig.type === "warning" && (
+                <AlertCircle className="w-16 h-16 text-yellow-500 mb-4" />
+              )}
+
+              {/* Title */}
+              <h2 className="text-xl font-bold text-[#23358B] mb-2">
+                {popupConfig.title}
+              </h2>
+
+              {/* Message */}
+              <p className="text-gray-700 mb-6">{popupConfig.message}</p>
+
+              {/* Button */}
+              <button
+                onClick={closePopup}
+                className={`px-8 py-2 rounded-md text-white font-semibold transition-all ${
+                  popupConfig.type === "success"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : popupConfig.type === "error"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-yellow-600 hover:bg-yellow-700"
+                }`}
+              >
+                OK
+              </button>
+            </div>
+          </div>
         </div>
-    );
+      )}
+    </>
+  );
 }

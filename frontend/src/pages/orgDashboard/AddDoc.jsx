@@ -1,9 +1,14 @@
 // src/pages/AddDoc.jsx
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { upload, createDocument, summarizePreview, getOrgMembers } from "../../Services/api";
+import {
+  upload,
+  createDocument,
+  summarizePreview,
+  getOrgMembers,
+} from "../../Services/api";
 import Sidebar from "../../components/SideBar";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import Header from "../../components/Header";
 
@@ -21,21 +26,43 @@ export default function AddDoc() {
 
   //form fields
   const [title, setTitle] = useState("");
-  const [due, setDue] = useState(""); 
+  const [due, setDue] = useState("");
   const [file, setFile] = useState(null);
-  const [notes, setNotes] = useState(""); 
-  
+  const [notes, setNotes] = useState("");
+
   // recipient controls
   // const [recipient, setRecipient] = useState("");
   const [recipientsMode, setRecipientsMode] = useState("all");
   const [selectedRecipients, setSelectedRecipients] = useState([]);
   const [members, setMembers] = useState([]);
-  
+
   // ui state
   const [loadingAI, setLoadingAI] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  
+  // popup state
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupConfig, setPopupConfig] = useState({
+    type: "success", // "success" | "error" | "warning"
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
+
+  const showNotification = (type, title, message, onConfirm = null) => {
+    setPopupConfig({ type, title, message, onConfirm });
+    setShowPopup(true);
+  };
+
+  const closePopup = () => {
+    setShowPopup(false);
+    if (popupConfig.onConfirm) {
+      setTimeout(() => {
+        popupConfig.onConfirm();
+      }, 100);
+    }
+  };
+
   useEffect(() => {
     if (userLoading) {
       return;
@@ -46,14 +73,16 @@ export default function AddDoc() {
         const data = await getOrgMembers(id);
         const meId = String(user?.id || "");
 
-        const list = (data?.members || [])
-          .map((m) => m?.user)
-          .filter(Boolean)
-          .filter((u) => String(u._id) !== meId)
-          .map((u) => ({ 
-            id: String(u._id), 
-            username: u.username, 
-            email: u.email })) || [];
+        const list =
+          (data?.members || [])
+            .map((m) => m?.user)
+            .filter(Boolean)
+            .filter((u) => String(u._id) !== meId)
+            .map((u) => ({
+              id: String(u._id),
+              username: u.username,
+              email: u.email,
+            })) || [];
 
         setMembers(list);
 
@@ -64,7 +93,7 @@ export default function AddDoc() {
       } catch (err) {
         console.error("load members error:", err);
       }
-    }
+    };
 
     fetchMember();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,7 +111,7 @@ export default function AddDoc() {
       const fd = new FormData();
       fd.append("file", file);
       // fd.append("organizationId", id);
-      const data = await summarizePreview(fd); 
+      const data = await summarizePreview(fd);
       const ok = typeof data?.ok === "boolean" ? data.ok : true;
       const summary = (data?.summary || "").trim();
 
@@ -91,11 +120,21 @@ export default function AddDoc() {
         // setNotes(data.summary);
         // setNotes(data.summary || "");
       } else {
-        alert("Ringkasan tidak tersedia saat ini. Anda tetap bisa submit dokumen.");
+        // alert("Ringkasan tidak tersedia saat ini. Anda tetap bisa submit dokumen.");
+        showNotification(
+          "warning",
+          "Summary Unavailable",
+          "Summary is not available at this time. You can still submit the document."
+        );
       }
     } catch (e) {
       console.error(e);
-      alert("Gagal generate ringkasan.");
+      // alert("Gagal generate ringkasan.");
+      showNotification(
+        "error",
+        "Generation Failed",
+        "Failed to generate summary."
+      );
     } finally {
       setLoadingAI(false);
     }
@@ -103,15 +142,45 @@ export default function AddDoc() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    if (submitting) return; 
+    if (submitting) return;
 
-    if (!title.trim()) return alert("Isi Document Title.");
-    if (!file) return alert("Silakan unggah file.");
+    // if (!title.trim()) return alert("Isi Document Title.");
+    if (!title.trim()) {
+      showNotification(
+        "warning",
+        "Missing Title",
+        "Please enter a document title."
+      );
+      return;
+    }
+    // if (!file) return alert("Silakan unggah file.");
+    if (!file) {
+      showNotification(
+        "warning",
+        "No File Uploaded",
+        "Please upload a file before submitting."
+      );
+      return;
+    }
     // if (!recipient) return alert("Pilih recipient.");
-    if (!due) return alert("Isi Due Date.");
+
+    // if (!due) return alert("Isi Due Date.");
+    if (!due) {
+      showNotification(
+        "warning",
+        "Missing Due Date",
+        "Please select a due date."
+      );
+      return;
+    }
 
     if (recipientsMode === "specific" && selectedRecipients.length === 0) {
-      return alert("Pilih minimal satu member sebagai recipient.");
+      // return alert("Pilih minimal satu member sebagai recipient.");
+      showNotification(
+        "warning",
+        "Missing Information",
+        "Please select at least one member as recipient."
+      );
     }
 
     try {
@@ -130,18 +199,24 @@ export default function AddDoc() {
         description: notes.trim() || "",
         organizationId: id,
         fileId,
-        status: "Uploaded",        
+        status: "Uploaded",
         dueDate: due,
         uploadDate,
         recipientsMode,
-        recipients:
-          recipientsMode === "specific" ? selectedRecipients : []               
+        recipients: recipientsMode === "specific" ? selectedRecipients : [],
       };
 
       await createDocument(newDoc);
 
-      alert("✅ Dokumen berhasil diunggah dan disimpan!");
-      navigate(`/${id}/manage-document`);
+      // alert("✅ Dokumen berhasil diunggah dan disimpan!");
+      // navigate(`/${id}/manage-document`);
+      showNotification(
+        "success",
+        "Success",
+        "Document has been successfully uploaded and saved!",
+        () => navigate(`/${id}/manage-document`)
+      );
+
       // ------KODE LAMA-------
       // fd.append("file", file);
       // fd.append("subject", title.trim());
@@ -156,10 +231,14 @@ export default function AddDoc() {
 
       // alert("Dokumen tersimpan!");
       // navigate("/manage-document");
-   
     } catch (e2) {
       console.error(e2);
-      alert("Gagal submit dokumen.");
+      // alert("Gagal submit dokumen.");
+      showNotification(
+        "error",
+        "Submission Failed",
+        "Failed to submit document. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -171,7 +250,7 @@ export default function AddDoc() {
 
       <div className="ml-64 min-h-screen">
         {/* Topbar */}
-        <Header title="Add Document"/>
+        <Header title="Add Document" />
 
         <main className="mx-auto max-w-7xl px-6 py-8">
           {/* Title row */}
@@ -277,7 +356,7 @@ export default function AddDoc() {
                   </label>
 
                   <label className="inline-flex items-center gap-2">
-                    <input 
+                    <input
                       type="radio"
                       name="recMode"
                       value="specific"
@@ -287,40 +366,49 @@ export default function AddDoc() {
                         setSelectedRecipients([]);
                       }}
                       disabled={submitting || members.length === 0}
-                      title={
-                        members.length === 0
-                          ? "No members found" : ""
-                      }
+                      title={members.length === 0 ? "No members found" : ""}
                     />
                     <span>Specific member(s)</span>
-                  </label>               
+                  </label>
                 </div>
 
                 {recipientsMode === "specific" && (
                   <div className="mt-3 rounded-xl border border-gray-200 p-3">
                     {members.length === 0 ? (
-                      <div className="text-sm text-gray-500">No members found.</div>
+                      <div className="text-sm text-gray-500">
+                        No members found.
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {members.map((m) => {
                           const checked = selectedRecipients.includes(m.id);
                           return (
-                            <label key={m.id} className="inline-flex items-center gap-2">
-                              <input 
+                            <label
+                              key={m.id}
+                              className="inline-flex items-center gap-2"
+                            >
+                              <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={(e) => {
                                   if (e.target.checked) {
-                                    setSelectedRecipients((prev) => [...prev, m.id]);
+                                    setSelectedRecipients((prev) => [
+                                      ...prev,
+                                      m.id,
+                                    ]);
                                   } else {
-                                    setSelectedRecipients((prev) => prev.filter((x) => x !== m.id));
+                                    setSelectedRecipients((prev) =>
+                                      prev.filter((x) => x !== m.id)
+                                    );
                                   }
                                 }}
                                 disabled={submitting}
                               />
                               <span className="text-sm">
                                 {m.username}{" "}
-                                <span className="text-gray-400 text-xs">({m.email})</span>
+                                <span className="text-gray-400 text-xs">
+                                  ({m.email})
+                                </span>
                               </span>
                             </label>
                           );
@@ -380,6 +468,47 @@ export default function AddDoc() {
           </form>
         </main>
       </div>
+
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-[90%] max-w-md">
+            <div className="flex flex-col items-center text-center">
+              {/* Icon */}
+              {popupConfig.type === "success" && (
+                <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+              )}
+              {popupConfig.type === "error" && (
+                <XCircle className="w-16 h-16 text-red-500 mb-4" />
+              )}
+              {popupConfig.type === "warning" && (
+                <AlertCircle className="w-16 h-16 text-yellow-500 mb-4" />
+              )}
+
+              {/* Title */}
+              <h2 className="text-xl font-bold text-[#23358B] mb-2">
+                {popupConfig.title}
+              </h2>
+
+              {/* Message */}
+              <p className="text-gray-700 mb-6">{popupConfig.message}</p>
+
+              {/* Button */}
+              <button
+                onClick={closePopup}
+                className={`px-8 py-2 rounded-md text-white font-semibold transition-all ${
+                  popupConfig.type === "success"
+                    ? "bg-green-600 hover:bg-green-700"
+                    : popupConfig.type === "error"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-yellow-600 hover:bg-yellow-700"
+                }`}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

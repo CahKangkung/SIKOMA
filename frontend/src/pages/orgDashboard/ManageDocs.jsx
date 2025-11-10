@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { listDocs, deleteDoc, search as searchApi } from "../../Services/api";
 import { useNavigate, useParams } from "react-router-dom";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 
 const TOP_K = 10;
@@ -22,7 +22,7 @@ function statusClass(s) {
   if (k === "approved" || k === "approve") return "text-emerald-600";
   if (k === "rejected" || k === "reject") return "text-rose-600";
   if (k === "uploaded") return "text-indigo-600";
-  return "text-amber-500"; 
+  return "text-amber-500";
 }
 function toDateStr(v) {
   if (!v) return "-";
@@ -41,10 +41,53 @@ export default function ManageDocs() {
 
   const [q, setQ] = useState("");
   const [hits, setHits] = useState([]);
-  const [loadingSearch, setLoadingSearch] = useState(false);  
+  const [loadingSearch, setLoadingSearch] = useState(false);
+
+  // popup state
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupConfig, setPopupConfig] = useState({
+    type: "success", // "success" | "error" | "warning"
+    title: "",
+    message: "",
+    onConfirm: null,
+    showCancel: false,
+  });
+
+  const showNotification = (
+    type,
+    title,
+    message,
+    onConfirm = null,
+    showCancel = false
+  ) => {
+    setPopupConfig({ type, title, message, onConfirm, showCancel });
+    setShowPopup(true);
+  };
+
+  const closePopup = (confirmed = false) => {
+    setShowPopup(false);
+    if (confirmed && popupConfig.onConfirm) {
+      setTimeout(() => {
+        popupConfig.onConfirm();
+      }, 100);
+    }
+  };
+
+  const showConfirm = (title, message, onConfirm) => {
+    setPopupConfig({
+      type: "warning",
+      title,
+      message,
+      onConfirm, // dipanggil saat user tekan Confirm
+      showCancel: true,
+    });
+    setShowPopup(true);
+  };
 
   // STT (opsional)
-  const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const SR =
+    typeof window !== "undefined" &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition);
   const canMic = !!SR;
   const [listening, setListening] = useState(false);
   const startMic = () => {
@@ -83,8 +126,8 @@ export default function ManageDocs() {
         status: d.status || "On Review",
       }));
       setDocs(normalized);
-     
-      const map = {};       
+
+      const map = {};
       (data || []).forEach((d) => {
         map[String(d._id)] = d;
       });
@@ -98,8 +141,8 @@ export default function ManageDocs() {
     }
   }, [orgId]);
 
-  useEffect(() => { 
-    loadDocs(); 
+  useEffect(() => {
+    loadDocs();
   }, [loadDocs]);
 
   // Auto-reload ketika ViewDoc selesai submit
@@ -111,8 +154,8 @@ export default function ManageDocs() {
       }
     };
     const onFocus = () => maybeReload();
-    const onVis = () => { 
-      if (document.visibilityState === "visible") maybeReload(); 
+    const onVis = () => {
+      if (document.visibilityState === "visible") maybeReload();
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVis);
@@ -124,43 +167,73 @@ export default function ManageDocs() {
     };
   }, [loadDocs]);
 
-  const runSearch = useCallback(async (queryStr) => {
-    const text = (queryStr ?? q).trim();
-    if (!text) return clearSearch();
-    setLoadingSearch(true);
-    try {
-      const res = await searchApi({ 
-        query: text, 
-        topK: TOP_K, 
-        threshold: THRESHOLD, 
-        withAnswer: false,
-        orgId,
-      });
-      setHits(res?.hits ?? []);
-    } catch (e) {
-      console.error("semantic search error:", e);
-      setHits([]);
-    } finally {
-      setLoadingSearch(false);
-    }
-  }, [q]);
+  const runSearch = useCallback(
+    async (queryStr) => {
+      const text = (queryStr ?? q).trim();
+      if (!text) return clearSearch();
+      setLoadingSearch(true);
+      try {
+        const res = await searchApi({
+          query: text,
+          topK: TOP_K,
+          threshold: THRESHOLD,
+          withAnswer: false,
+          orgId,
+        });
+        setHits(res?.hits ?? []);
+      } catch (e) {
+        console.error("semantic search error:", e);
+        setHits([]);
+      } finally {
+        setLoadingSearch(false);
+      }
+    },
+    [q]
+  );
 
   const clearSearch = () => setHits([]);
 
-  const doDelete = async (id) => {
-    if (!confirm("Hapus dokumen ini?")) return;
-    try {
-      await deleteDoc(id, orgId);
-      await loadDocs();
-      if (q.trim()) runSearch(q);
-    } catch (e) {
-      console.error(e);
-      alert("Gagal menghapus dokumen.");
-      return;
-    }
+  const doDelete = (id) => {
+    showConfirm(
+      "Delete Document?",
+      "This action cannot be undone.",
+      async () => {
+        try {
+          await deleteDoc(id, orgId);
+          await loadDocs();
+          if (q.trim()) runSearch(q);
+          showNotification(
+            "success",
+            "Deleted",
+            "The document has been deleted."
+          );
+        } catch (e) {
+          console.error(e);
+          showNotification(
+            "error",
+            "Deletion Failed",
+            "Failed to delete the document. Please try again."
+          );
+        }
+      }
+    );
   };
+  // --------------KODE LAMA--------------------
+  // const doDelete = async (id) => {
+  //   if (!confirm("Hapus dokumen ini?")) return;
+  //   try {
+  //     await deleteDoc(id, orgId);
+  //     await loadDocs();
+  //     if (q.trim()) runSearch(q);
+  //   } catch (e) {
+  //     console.error(e);
+  //     alert("Gagal menghapus dokumen.");
+  //     return;
+  //   }
+  // };
 
-  const showingSearch = q.trim().length > 0 && (loadingSearch || hits.length > 0);
+  const showingSearch =
+    q.trim().length > 0 && (loadingSearch || hits.length > 0);
 
   //post commit 4
   const displayUsername = (user) => {
@@ -169,7 +242,6 @@ export default function ManageDocs() {
     if (user.username && user.username.startsWith("[deleted_")) return "-";
     return user.username || "Unknown";
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -182,7 +254,9 @@ export default function ManageDocs() {
           {/* Search + Add */}
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                🔎
+              </span>
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -202,7 +276,9 @@ export default function ManageDocs() {
                 onClick={startMic}
                 disabled={!canMic}
                 className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-3 py-1.5 text-lg transition
-                  ${listening ? "bg-rose-100" : "hover:bg-gray-100"} ${!canMic ? "opacity-40 cursor-not-allowed" : ""}`}
+                  ${listening ? "bg-rose-100" : "hover:bg-gray-100"} ${
+                  !canMic ? "opacity-40 cursor-not-allowed" : ""
+                }`}
               >
                 🎤
               </button>
@@ -215,7 +291,7 @@ export default function ManageDocs() {
             >
               +
             </button>
-          </div>          
+          </div>
 
           {/* Table */}
           <div className="mt-4 rounded-2xl border border-gray-200 bg-white p-2 sm:p-3">
@@ -230,32 +306,51 @@ export default function ManageDocs() {
 
             {showingSearch ? (
               loadingSearch ? (
-                <div className="px-3 py-4 text-sm text-gray-500">Searching…</div>
+                <div className="px-3 py-4 text-sm text-gray-500">
+                  Searching…
+                </div>
               ) : hits.length ? (
                 hits.map((h, i) => {
                   const key = String(h.docId);
                   const meta = docMap[key] || {};
                   const displayStatus = prettyStatus(meta.status);
                   return (
-                    <div key={i} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-start px-3 py-3 text-sm">
+                    <div
+                      key={i}
+                      className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-start px-3 py-3 text-sm"
+                    >
                       <div>
                         <div className="font-semibold text-gray-800">
-                          {meta.title || meta.subject || `(Doc ${key.slice(-6)})`}
+                          {meta.title ||
+                            meta.subject ||
+                            `(Doc ${key.slice(-6)})`}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          Score: {typeof h.score === "number" ? h.score.toFixed(3) : h.score} • Hal {h.page}
+
+                        <div className="mt-1 line-clamp-2 text-xs text-gray-500">
+                          {h.text || ""}
                         </div>
-                        <div className="mt-1 line-clamp-2 text-xs text-gray-500">{h.text || ""}</div>
                       </div>
-                      {/* <div className="text-gray-700">{meta.author || "—"}</div>*/} {/* post commit 4 comment */}
-                      <div className="text-gray-700">{displayUsername(meta.createdByUser)}</div> {/* post commit 4 */}
-                      <div className="text-gray-700">{toDateStr(meta.uploadDate || meta.createdAt)}</div>
-                      <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
+                      {/* <div className="text-gray-700">{meta.author || "—"}</div>*/}{" "}
+                      {/* post commit 4 comment */}
+                      <div className="text-gray-700">
+                        {displayUsername(meta.createdByUser)}
+                      </div>{" "}
+                      {/* post commit 4 */}
+                      <div className="text-gray-700">
+                        {toDateStr(meta.uploadDate || meta.createdAt)}
+                      </div>
+                      <div
+                        className={`${statusClass(displayStatus)} font-medium`}
+                      >
+                        {displayStatus}
+                      </div>
                       <div className="flex items-center justify-center gap-2">
                         <button
                           className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
-                          title="View"                          
-                          onClick={() => navigate(`/${orgId}/manage-document/${key}`)}
+                          title="View"
+                          onClick={() =>
+                            navigate(`/${orgId}/manage-document/${key}`)
+                          }
                         >
                           👁️
                         </button>
@@ -272,7 +367,9 @@ export default function ManageDocs() {
                   );
                 })
               ) : (
-                <div className="px-3 py-4 text-sm text-gray-500">No Result ≥ {THRESHOLD}.</div>
+                <div className="px-3 py-4 text-sm text-gray-500">
+                  No Result ≥ {THRESHOLD}.
+                </div>
               )
             ) : loadingDocs ? (
               <div className="px-3 py-4 text-sm text-gray-500">Loading…</div>
@@ -280,17 +377,32 @@ export default function ManageDocs() {
               docs.map((d) => {
                 const displayStatus = prettyStatus(d.status);
                 return (
-                  <div key={d.id} className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm">                    
-                    <div className="text-gray-800">{d.title || "(tanpa subjek)"}</div>
-                    {/* <div className="text-gray-700">{d.createdBy}</div> */} {/* post commit 4 comment*/} 
-                    <div className="text-gray-700">{displayUsername(d.createdByUser)}</div> {/* post commit 4 */}                    
-                    <div className="text-gray-700">{d.uploadDate}</div>                    
-                    <div className={`${statusClass(displayStatus)} font-medium`}>{displayStatus}</div>
+                  <div
+                    key={d.id}
+                    className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm"
+                  >
+                    <div className="text-gray-800">
+                      {d.title || "(tanpa subjek)"}
+                    </div>
+                    {/* <div className="text-gray-700">{d.createdBy}</div> */}{" "}
+                    {/* post commit 4 comment*/}
+                    <div className="text-gray-700">
+                      {displayUsername(d.createdByUser)}
+                    </div>{" "}
+                    {/* post commit 4 */}
+                    <div className="text-gray-700">{d.uploadDate}</div>
+                    <div
+                      className={`${statusClass(displayStatus)} font-medium`}
+                    >
+                      {displayStatus}
+                    </div>
                     <div className="flex items-center justify-center gap-2">
                       <button
                         className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
                         title="View"
-                        onClick={() => navigate(`/${orgId}/manage-document/${d.id}`)}
+                        onClick={() =>
+                          navigate(`/${orgId}/manage-document/${d.id}`)
+                        }
                       >
                         👁️
                       </button>
@@ -307,11 +419,60 @@ export default function ManageDocs() {
                 );
               })
             ) : (
-              <div className="px-3 py-4 text-sm text-gray-500">No documents.</div>
+              <div className="px-3 py-4 text-sm text-gray-500">
+                No documents.
+              </div>
             )}
           </div>
         </main>
       </div>
+
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-[90%] max-w-md">
+            <div className="flex flex-col items-center text-center">
+              {/* Title */}
+              <h2 className="text-xl font-bold text-[#23358B] mb-2">
+                {popupConfig.title}
+              </h2>
+
+              {/* Message */}
+              <p className="text-gray-700 mb-6">{popupConfig.message}</p>
+
+              {/* Buttons */}
+              {!popupConfig.showCancel ? (
+                <button
+                  onClick={() => closePopup(true)} // jalankan onConfirm bila ada
+                  className={`px-8 py-2 rounded-md text-white font-semibold transition-all ${
+                    popupConfig.type === "success"
+                      ? "bg-green-600 hover:bg-green-700"
+                      : popupConfig.type === "error"
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-yellow-600 hover:bg-yellow-700"
+                  }`}
+                >
+                  OK
+                </button>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => closePopup(false)} // batal
+                    className="px-6 py-2 rounded-md font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => closePopup(true)} // konfirmasi
+                    className="px-6 py-2 rounded-md text-white font-semibold bg-red-600 hover:bg-red-700"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

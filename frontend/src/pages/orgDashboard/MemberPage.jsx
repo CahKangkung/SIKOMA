@@ -1,6 +1,6 @@
 // src/pages/MemberPage.jsx
 import React, { useState, useEffect } from "react";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 import { useUser } from "../../context/UserContext";
 import { useParams } from "react-router-dom";
@@ -175,7 +175,8 @@ export default function MemberPage() {
       const confirmation = prompt("Type 'confirm' to transfer ownership");
 
       if (confirmation?.toLowerCase() !== "confirm") {
-          alert("Transfer canceled");
+          // alert("Transfer canceled");
+          setMessage("🚫 Transfer canceled");
           return;
       }
 
