@@ -2,7 +2,7 @@
 **Simplify, track, and connect with SIKOMA** 
 
 A smart, centralized platform for document and letter management designed to help student organization and campus administrative units efficiently upload, track and manage their official correspondence. 
-SIKOMA ensures document handling, clear tracking statuses, and AI-powered tools for smarter workflows. 
+SIKOMA ensures document handling, clear tracking statuses, and AI-powered tools for smarter workflows.
 
 ---
 
