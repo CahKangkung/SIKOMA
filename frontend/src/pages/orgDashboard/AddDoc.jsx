@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { upload, createDocument, summarizePreview, getOrgMembers } from "../../Services/api";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../components/SideBar";
 import { ArrowLeft } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import Header from "../../components/Header";
@@ -175,15 +175,6 @@ export default function AddDoc() {
 
         <main className="mx-auto max-w-7xl px-6 py-8">
           {/* Title row */}
-          <button
-            // onClick={() => navigate(-1)}
-            onClick={() => navigate(`/${id}/manage-document`)}
-            className="mb-6 inline-flex items-center gap-2 text-[#23358B] hover:opacity-80"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span className="text-lg font-semibold">Add New Document</span>
-          </button>
-
           <form
             onSubmit={onSubmit}
             onKeyDown={(e) => {

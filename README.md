@@ -20,6 +20,7 @@ SIKOMA ensures document handling, clear tracking statuses, and AI-powered tools 
 - Track document approval status (uploaded, in review, approved, or rejected).
 - Manage files with role-based access access control (admin, member). 
 - Notification if there is a new uploaded document. 
+- Notification if the document On Review, Rejected, or Accepted.
 
 ### 3. 🧠 AI Integration (Gemini API)
 - **Semantic Search:** Find related documents using natural language queries. 

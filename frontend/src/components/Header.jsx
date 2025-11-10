@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useUser } from "../context/UserContext";
-import { User as UserIcon, IdCard, LogOut, ArrowLeft, Bell, FilePlus2, Users } from "lucide-react";
+import { User as UserIcon, IdCard, LogOut, ArrowLeft, Bell, FilePlus2, Users, CheckCircle2, XCircle, Cog } from "lucide-react";
 
 export default function Header({ title }) {
   const { user, clearUser } = useUser();
@@ -63,6 +63,7 @@ export default function Header({ title }) {
           newDocs: Number(base?.counts?.newDocs || 0),
           joinRequests: Number(base?.counts?.joinRequests || 0),
           accepted: Number(base?.counts?.accepted || 0),
+          statusUpdates: Number(base?.counts?.statusUpdates || 0),
         };
 
         // Perbaiki tautan dokumen baru agar mengarah ke /manage-document/
@@ -106,7 +107,7 @@ export default function Header({ title }) {
           role,
           items,
           counts,
-          total: counts.newDocs + counts.joinRequests + counts.accepted,
+          total: counts.newDocs + counts.joinRequests + counts.accepted + counts.statusUpdates,
         });
       } catch (e) {
         console.error("Notif load error (org):", e);
@@ -137,7 +138,7 @@ export default function Header({ title }) {
         items.push({
           type: "join_pending",
           id: `pending-${org._id}`,
-          title: `Menunggu persetujuan di ${org.name}`,
+          title: `Waiting for approval ${org.name}`,
           createdAt: org.updatedAt || nowISO,
           link: `/home`,
         });
@@ -149,7 +150,7 @@ export default function Header({ title }) {
         items.push({
           type: "membership_accepted",
           id: `accepted-${org._id}`,
-          title: `Diterima bergabung di ${org.name}`,
+          title: `Accepted by ${org.name}`,
           createdAt: acceptedAt,
           link: `/${org._id}/dashboard`,
         });
@@ -279,7 +280,7 @@ export default function Header({ title }) {
           <button
             onClick={onToggleNotif}
             className="relative rounded-full p-2 text-[#23358B] hover:bg-indigo-50"
-            title={paramId ? "Notifications" : "Buka organisasi untuk melihat notifikasi"}
+            title={paramId ? "Notifications" : "Open organization to see notifications"}
             aria-haspopup="menu"
             aria-expanded={notifOpen}
           >
@@ -310,14 +311,26 @@ export default function Header({ title }) {
                       }
                     };
                     const when = it.createdAt ? new Date(it.createdAt).toLocaleString("id-ID") : "";
-                    const Icon =
-                      it.type === "join_request" ? Users : it.type === "doc_new" ? FilePlus2 : Users;
-                    const iconCls =
-                      it.type === "join_request"
-                        ? "text-rose-500"
-                        : it.type === "doc_new"
-                        ? "text-[#23358B]"
-                        : "text-green-600";
+                    let Icon = Users;
+                    let iconCls = "text-green-600";
+                    if (it.type === "join_request") {
+                      Icon = Users;
+                      iconCls = "text-rose-500";
+                    } else if (it.type === "doc_new") {
+                      Icon = FilePlus2;
+                      iconCls = "text-[#23358B]";
+                    } else if (it.type === "doc_status") {
+                      if (it.status === "Approved") {
+                        Icon = CheckCircle2;
+                        iconCls = "text-green-600";
+                      } else if (it.status === "Rejected" || it.status === "Reject") {
+                        Icon = XCircle;
+                        iconCls = "text-rose-500";
+                      } else {
+                        Icon = Cog;
+                        iconCls = "text-yellow-600";
+                      }
+                    }
                     return (
                       <a
                         key={`${it.type}-${it.id}`}
@@ -337,22 +350,7 @@ export default function Header({ title }) {
                   })
                 ) : (
                   <div className="px-4 py-8 text-center text-sm text-gray-500">
-                    {paramId ? "Tidak ada notifikasi baru" : "Buka organisasi untuk melihat notifikasi"}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between bg-gray-50 px-4 py-2 text-xs text-gray-600">
-                <div>
-                  Docs baru: <b>{notifData?.counts?.newDocs || 0}</b>
-                </div>
-                {notifData?.role === "admin" ? (
-                  <div>
-                    Join requests: <b>{notifData?.counts?.joinRequests || 0}</b>
-                  </div>
-                ) : (
-                  <div>
-                    Accepted: <b>{notifData?.counts?.accepted || 0}</b>
+                    {paramId ? "No new notifications" : "Open organization to see notifications"}
                   </div>
                 )}
               </div>
