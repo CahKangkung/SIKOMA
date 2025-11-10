@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useUser } from "../context/UserContext";
-import { User as UserIcon, IdCard, LogOut, ArrowLeft, Bell, FilePlus2, Users } from "lucide-react";
+import { User as UserIcon, IdCard, LogOut, ArrowLeft, Bell, FilePlus2, Users, CheckCircle2, XCircle, Cog } from "lucide-react";
 
 export default function Header({ title }) {
   const { user, clearUser } = useUser();
@@ -63,6 +63,7 @@ export default function Header({ title }) {
           newDocs: Number(base?.counts?.newDocs || 0),
           joinRequests: Number(base?.counts?.joinRequests || 0),
           accepted: Number(base?.counts?.accepted || 0),
+          statusUpdates: Number(base?.counts?.statusUpdates || 0),
         };
 
         // Perbaiki tautan dokumen baru agar mengarah ke /manage-document/
@@ -106,7 +107,7 @@ export default function Header({ title }) {
           role,
           items,
           counts,
-          total: counts.newDocs + counts.joinRequests + counts.accepted,
+          total: counts.newDocs + counts.joinRequests + counts.accepted + counts.statusUpdates,
         });
       } catch (e) {
         console.error("Notif load error (org):", e);
@@ -310,14 +311,26 @@ export default function Header({ title }) {
                       }
                     };
                     const when = it.createdAt ? new Date(it.createdAt).toLocaleString("id-ID") : "";
-                    const Icon =
-                      it.type === "join_request" ? Users : it.type === "doc_new" ? FilePlus2 : Users;
-                    const iconCls =
-                      it.type === "join_request"
-                        ? "text-rose-500"
-                        : it.type === "doc_new"
-                        ? "text-[#23358B]"
-                        : "text-green-600";
+                    let Icon = Users;
+                    let iconCls = "text-green-600";
+                    if (it.type === "join_request") {
+                      Icon = Users;
+                      iconCls = "text-rose-500";
+                    } else if (it.type === "doc_new") {
+                      Icon = FilePlus2;
+                      iconCls = "text-[#23358B]";
+                    } else if (it.type === "doc_status") {
+                      if (it.status === "Approved") {
+                        Icon = CheckCircle2;
+                        iconCls = "text-green-600";
+                      } else if (it.status === "Rejected" || it.status === "Reject") {
+                        Icon = XCircle;
+                        iconCls = "text-rose-500";
+                      } else {
+                        Icon = Cog;
+                        iconCls = "text-yellow-600";
+                      }
+                    }
                     return (
                       <a
                         key={`${it.type}-${it.id}`}

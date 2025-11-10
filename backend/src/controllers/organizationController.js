@@ -649,6 +649,50 @@ export async function getHeaderNotifications(req, res) {
 
     // --- New docs ---
     let newDocs = [];
+
+    let statusUpdates = [];
+    {
+    const idCandidates = [userIdStr, userObjId].filter(Boolean);
+    const whoMatch =
+      role === "admin"
+        ? { organizationId: orgObjId }
+        : { organizationId: orgObjId, createdBy: { $in: idCandidates } };
+ 
+    // ambil kandidat yang mungkin ada perubahan status baru
+    const candidates = await lettersCol
+      .find(
+        {
+          ...whoMatch,
+          $or: [
+            { updatedAt: { $gt: statusSeenAt } },
+            { "reviews.at": { $gt: statusSeenAt } },
+          ],
+        },
+        { projection: { title: 1, status: 1, updatedAt: 1, reviews: 1 } }
+      )
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .toArray();
+ 
+    // pilih waktu perubahan terakhir antara updatedAt vs max(reviews.at)
+    statusUpdates = candidates
+      .map((d) => {
+        const lastReviewAt = Array.isArray(d.reviews) && d.reviews.length
+          ? new Date(Math.max(...d.reviews.map((r) => new Date(r.at || 0).getTime())))
+          : null;
+        const changedAt = new Date(
+          Math.max(
+            d.updatedAt ? new Date(d.updatedAt).getTime() : 0,
+            lastReviewAt ? lastReviewAt.getTime() : 0
+          )
+        );
+        return { ...d, changedAt };
+      })
+      .filter((d) => d.changedAt && d.changedAt > statusSeenAt)
+      .sort((a, b) => b.changedAt - a.changedAt)
+      .slice(0, 10);
+  }
+
     if (role === "admin") {
       // admin: semua dokumen dalam org sejak docsSeenAt
       const match = {
@@ -735,18 +779,36 @@ export async function getHeaderNotifications(req, res) {
         link: `/${String(org._id)}/manage-document/${String(d._id)}`, // sesuaikan route Anda
       });
     }
-
+    // Tambah item untuk update status
+    for (const d of statusUpdates) {
+      const label = String(d.status || "").toLowerCase();
+      const nice =
+        label === "approved" || label === "approve"
+          ? "Approved"
+          : label === "reject" || label === "rejected"
+          ? "Rejected"
+          : "On Review";
+      items.push({
+        type: "doc_status",
+        id: `st-${String(d._id)}`,
+        title: `${d.title || "Dokumen"}: status → ${nice}`,
+        status: nice, // dikirim agar frontend bisa pilih ikon/warna
+        createdAt: d.changedAt,
+        link: `/${String(org._id)}/manage-document/${String(d._id)}`,
+      });
+    }
     // Summary count
     const counts = {
       newDocs: newDocs.length,
       joinRequests: role === "admin" ? joinRequests.length : 0,
       accepted: role !== "admin" && accepted ? 1 : 0,
+      statusUpdates: statusUpdates.length,
     };
 
     return res.json({
       role,
       counts,
-      total: counts.newDocs + counts.joinRequests + counts.accepted,
+      total: counts.newDocs + counts.joinRequests + counts.accepted + (counts.statusUpdates || 0),
       items: items
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 10),
