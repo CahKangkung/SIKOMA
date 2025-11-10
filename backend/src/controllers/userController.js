@@ -57,8 +57,8 @@ export const login = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // pakai https di production
-      sameSite: "lax", // biar bisa dikirim antara localhost:8080 dan 5173
+      secure: false, // Set to true only when using HTTPS
+      sameSite: "lax",
       maxAge: 3600000, // 1 jam
     });
 
@@ -164,7 +164,7 @@ export const googleCallback = async (req, res) => {
 
     res.cookie("token", appToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Set to true only when using HTTPS
       sameSite: "lax",
       maxAge: 3600000,
     });
