@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { upload, createDocument, summarizePreview, getOrgMembers } from "../../Services/api";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../../components/SideBar";
 import { ArrowLeft } from "lucide-react";
 import { useUser } from "../../context/UserContext";
 import Header from "../../components/Header";

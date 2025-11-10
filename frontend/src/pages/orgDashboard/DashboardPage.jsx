@@ -15,6 +15,28 @@ export default function DashboardPage() {
   // const [message, setMessage] = useState("");
   const [loadingPage, setLoadingPage] = useState(false);
 
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupConfig, setPopupConfig] = useState({
+    type: "error",
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
+
+  const showNotification = (type, title, message, onConfirm = null) => {
+    setPopupConfig({ type, title, message, onConfirm });
+    setShowPopup(true);
+  };
+
+  const closePopup = () => {
+    setShowPopup(false);
+    if (popupConfig.onConfirm) {
+      setTimeout(() => {
+        popupConfig.onConfirm();
+      }, 100);
+    }
+  };
+
   const userId = user ? user.id || user._id : null;
 
   const [stats, setStats] = useState({
@@ -62,15 +84,27 @@ export default function DashboardPage() {
         console.log("🆔 User ID:", userId);
 
         if (!isMember && !isCreator) {
-          alert("You are not authorized to access this organization");
-          navigate("/home/current");
+          // alert("You are not authorized to access this organization");
+          // navigate("/home/current");
+          showNotification(
+            "error",
+            "Access Denied",
+            "You are not authorized to access this organization.",
+            () => navigate("/home/current")
+          );
           return;
         }
 
         setOrg(data);
       } catch (err) {
         console.error("Error fetching organization data: ", err);
-        navigate("/home/current");
+        // navigate("/home/current");
+        showNotification(
+          "error",
+          "Failed to Load Organization",
+          err.message || "Unable to load organization data. Redirecting...",
+          () => navigate("/home/current")
+        );
       } finally {
         setLoadingPage(false);
       }
