@@ -1,5 +1,5 @@
-// src/pages/DashboardPage.jsx
-import Sidebar from "../../components/Sidebar";
+// src/pages/orgDashboard/DashboardPage.jsx
+import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -9,13 +9,13 @@ import { getOrgStats } from "../../Services/api";
 export default function DashboardPage() {
   const { id } = useParams();
   const { setCurrentOrgId } = useUser();
-  const { user, loading }= useUser();
+  const { user, loading } = useUser();
   const [org, setOrg] = useState(null);
   const navigate = useNavigate();
   // const [message, setMessage] = useState("");
   const [loadingPage, setLoadingPage] = useState(false);
 
-  const userId = user ? (user.id || user._id) : null;
+  const userId = user ? user.id || user._id : null;
 
   const [stats, setStats] = useState({
     uploaded: 0,
@@ -27,7 +27,6 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!id || !userId) return;
     const fetchOrg = async () => {
-      
       try {
         setLoadingPage(true);
         // console.log("🔍 Fetching organization:", id);
@@ -35,9 +34,12 @@ export default function DashboardPage() {
 
         const userId = user.id || user._id;
 
-        const res = await fetch(`http://localhost:8080/api/organization/${id}`, {
-          credentials: "include"
-        });
+        const res = await fetch(
+          `http://localhost:8080/api/organization/${id}`,
+          {
+            credentials: "include",
+          }
+        );
 
         const data = await res.json();
         console.log("📦 Organization data:", data);
@@ -47,11 +49,16 @@ export default function DashboardPage() {
         }
 
         const isCreator = String(data.createdBy._id) === String(userId);
-        const isMember = data.members.some((m) => String(m.user._id) === String(userId));    
-        
+        const isMember = data.members.some(
+          (m) => String(m.user._id) === String(userId)
+        );
+
         console.log("✅ Is Creator:", isCreator);
         console.log("✅ Is Member:", isMember);
-        console.log("📋 Members list:", data.members.map(m => m.user._id));
+        console.log(
+          "📋 Members list:",
+          data.members.map((m) => m.user._id)
+        );
         console.log("🆔 User ID:", userId);
 
         if (!isMember && !isCreator) {
@@ -71,7 +78,7 @@ export default function DashboardPage() {
 
     fetchOrg();
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user, navigate]);
 
   useEffect(() => {
@@ -107,7 +114,6 @@ export default function DashboardPage() {
     );
   }
 
-
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
@@ -125,7 +131,8 @@ export default function DashboardPage() {
             {org?.name || "Loading..."}
           </h1>
 
-          <h2 className="text-lg font-semibold mb-2">Organization Info</h2>
+          {/* ---------------------KODE LAMA------------------------- */}
+          {/* <h2 className="text-lg font-semibold mb-2">Organization Info</h2>
           {org ? (
             <>
               <p><strong>Author: </strong>{org.createdBy?.username}</p>
@@ -136,14 +143,79 @@ export default function DashboardPage() {
             </>
           ) : (
             <p className="text-gray-500">Loading organization info...</p>
-          )}
-          
+          )} */}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card title="Uploaded" value={stats.uploaded ?? 0} color="bg-blue-100" text="text-blue-700" />
             <Card title="On Review" value={stats.onReview ?? 0} color="bg-yellow-100" text="text-yellow-700" />
             <Card title="Approved" value={stats.approved ?? 0} color="bg-green-100" text="text-green-700" />
             <Card title="Rejected" value={stats.rejected ?? 0} color="bg-red-100" text="text-red-700" />
+          </div> */}
+
+          {/* 2 kolom: kiri = detail (box putih), kanan = cards stats */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-6">
+            {/* KIRI: Detail organisasi */}
+            <div className="lg:col-span-1 lg:row-span-2">
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-black/5 p-6">
+                <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                  Organization's Detail
+                </h4>
+
+                {org ? (
+                  <div className="space-y-2 text-sm text-slate-700 leading-6">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Author</span>
+                      <span className="font-medium">
+                        {org.createdBy?.username}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Member</span>
+                      <span className="font-medium">{org.members.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Your Role</span>
+                      <span className="font-medium">
+                        {org.members.find((m) => m.user._id === userId)?.role ||
+                          "Unknown"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-500">Loading organization info...</p>
+                )}
+              </div>
+            </div>
+
+            {/* KANAN: 4 kartu statistik (grid 2x2) */}
+            <div className="lg:col-span-2 ">
+              <div className="lg:col-span-2 lg:row-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <Card
+                  title="Uploaded"
+                  value={stats.uploaded ?? 0}
+                  color="bg-blue-50"
+                  text="text-blue-700"
+                />
+                <Card
+                  title="On Review"
+                  value={stats.onReview ?? 0}
+                  color="bg-yellow-50"
+                  text="text-yellow-700"
+                />
+                <Card
+                  title="Approved"
+                  value={stats.approved ?? 0}
+                  color="bg-green-50"
+                  text="text-green-700"
+                />
+                <Card
+                  title="Rejected"
+                  value={stats.rejected ?? 0}
+                  color="bg-red-50"
+                  text="text-red-700"
+                />
+              </div>
+            </div>
           </div>
         </main>
       </div>
