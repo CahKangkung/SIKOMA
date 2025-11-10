@@ -39,7 +39,7 @@ export default function MemberPage() {
 
       setLoadingData(true);
 
-      const memberOrg = await fetch(`http://localhost:8080/api/organization/${id}/members`, {
+      const memberOrg = await fetch(`http://localhost:8080/api/organization/${id}/member`, {
         credentials: "include"
       });
 
@@ -146,7 +146,7 @@ export default function MemberPage() {
   const handleKickUser = async (memberId) => {
       // if (!window.confirm("Are you sure you want to remove this member?")) return;
       try {
-        const res = await fetch(`http://localhost:8080/api/organization/${id}/members/${memberId}`, {
+        const res = await fetch(`http://localhost:8080/api/organization/${id}/member/${memberId}`, {
             method: "DELETE",
             headers: {
                 // Authorization: `Bearer ${localStorage.getItem("token")}`,

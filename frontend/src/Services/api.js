@@ -107,7 +107,7 @@ export const updateDocStatus = async (id, payload) => {
 };
 
 export const getOrgMembers = async (orgId) => {
-  const res = await api.get(`/organization/${orgId}/members`);
+  const res = await api.get(`/organization/${orgId}/member`);
   return res.data;
 };
 
@@ -180,5 +180,32 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+function authHeaders() {
+  const t = localStorage.getItem("token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+export async function getHeaderNotifications(orgId, since = null) {
+  const params = new URLSearchParams();
+  if (since?.sinceDocsAt) params.set("sinceDocsAt", since.sinceDocsAt);
+  if (since?.sinceStatusAt) params.set("sinceStatusAt", since.sinceStatusAt);
+
+  const r = await fetch(`${api}/organization/${orgId}/header-notifications?${params.toString()}`, {
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function markHeaderNotificationsRead(orgId) {
+  const r = await fetch(`${api}/organization/${orgId}/header-notifications/read`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({}), // tidak perlu payload
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
 
 export default api;

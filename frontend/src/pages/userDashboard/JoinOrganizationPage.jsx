@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useUser } from "../../context/UserContext";
+import Header from "../../components/Header";
 import { User as UserIcon, IdCard, LogOut } from "lucide-react";
 
 export default function JoinOrganizationPage() {
@@ -129,54 +130,7 @@ export default function JoinOrganizationPage() {
 
   return (
     <section className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="flex justify-between items-center px-6 py-4 border-b bg-white shadow-sm" style={{ position: "sticky", top: "0" }}>
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm text-[#23358B] hover:underline"
-        >
-          <ChevronLeft size={18} /> Return
-        </button>
-        <h1 className="text-xl font-bold text-gray-800">Existing Organization</h1>
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
-          >
-            <span>{user?.username || "User"}</span>
-            <UserIcon className="w-5 h-5" />
-          </button>
-
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-neutral-900 text-white shadow-2xl ring-1 ring-black/10 z-50"
-            >
-            <button
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                navigate("/account");
-              }}
-              className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
-            >
-              <IdCard className="h-5 w-5 text-white/80" />
-              <span>Account Detail</span>
-            </button>
-            <div className="h-px bg-white/10" />
-              <button
-                role="menuitem"
-                onClick={handleLogout}
-                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800 text-red-300"
-              >
-                <LogOut className="h-5 w-5" />
-                <span>Logout</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <Header title="Join Organization" />
 
       <main className="flex-1 px-6 py-8">
         <p className="text-center text-gray-600 mb-6">

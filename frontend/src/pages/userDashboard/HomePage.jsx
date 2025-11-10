@@ -4,6 +4,7 @@ import logo from "../../assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
 import { UserRound, Building2, PlusSquare, User as UserIcon, IdCard, LogOut } from "lucide-react";
+import Header from './../../components/Header';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -51,7 +52,7 @@ export default function HomePage() {
 
   return (
     <section className="min-h-screen flex flex-col justify-between bg-white">
-      <header className="flex justify-between items-center px-10 py-6 border-b">
+      {/* <header className="flex justify-between items-center px-10 py-6 border-b">
         <div className="flex items-center gap-2">
           <img src={logo} alt="SIKOMA" className="h-8 w-auto md:h-10" />
         </div>
@@ -95,7 +96,8 @@ export default function HomePage() {
             </div>
           )}
         </div>
-      </header>
+      </header> */}
+      <Header />
 
       {/* Main Content */}
       <main className="flex flex-col items-center justify-center text-center px-6 py-10">

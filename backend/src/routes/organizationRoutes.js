@@ -16,8 +16,11 @@ import {
     deleteMember,
     transferAdmin,
     getOrg,
-    getOrgDashboardStats
+    getOrgDashboardStats,
+    getHeaderNotifications,
+    markHeaderNotificationsRead
 } from "../controllers/organizationController.js";
+import auth from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
@@ -55,10 +58,10 @@ router.post("/:id/approve/:userId", approveUser);
 router.post("/:id/reject/:userId", rejectUser);
 
 // Member organization list
-router.get("/:id/members", memberList);
+router.get("/:id/member", memberList);
 
 // Delete member organization
-router.delete("/:id/members/:memberId", deleteMember);
+router.delete("/:id/member/:memberId", deleteMember);
 
 // Transfer admin to member
 router.put("/:id/transfer/:memberId", transferAdmin);
@@ -72,7 +75,7 @@ router.get("/:id/stats", getOrgDashboardStats);
 // Get all organization
 // router.get("/all", allOrg);
 
-// Get organization dashboard stats
-router.get("/:id/stats", getOrgDashboardStats);
+router.get("/:id/header-notifications", auth, getHeaderNotifications);
+router.put("/:id/header-notifications/read", auth, markHeaderNotificationsRead)
 
 export default router;

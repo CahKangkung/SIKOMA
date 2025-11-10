@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../context/UserContext";
 import { ChevronLeft, User as UserIcon, IdCard, LogOut } from "lucide-react";
+import Header from "../../components/Header";
 
 export default function CreateOrganizationPage() {
   const navigate = useNavigate();
@@ -82,53 +83,7 @@ export default function CreateOrganizationPage() {
 
   return (
     <section className="min-h-screen flex flex-col justify-between bg-gray-50">
-      <header className="flex justify-between items-center px-6 py-4 border-b bg-white">
-        <button
-          onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 text-sm text-[#23358B] hover:underline"
-        >
-          <ChevronLeft size={18} /> Return
-        </button>
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
-          >
-            <span>{user?.username || "User"}</span>
-            <UserIcon className="w-5 h-5" />
-          </button>
-
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl bg-neutral-900 text-white shadow-2xl ring-1 ring-black/10 z-50"
-            >
-            <button
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                navigate("/account");
-              }}
-              className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800"
-            >
-              <IdCard className="h-5 w-5 text-white/80" />
-              <span>Account Detail</span>
-            </button>
-            <div className="h-px bg-white/10" />
-              <button
-                role="menuitem"
-                onClick={handleLogout}
-                className="flex w-full items-center gap-3 px-4 py-3 hover:bg-neutral-800 text-red-300"
-              >
-                <LogOut className="h-5 w-5" />
-                <span>Logout</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
+      <Header title="Create Organization" />
 
       <main className="flex flex-col items-center px-6 py-10">
         <h1 className="text-3xl font-extrabold text-gray-900 mb-10 text-center">
