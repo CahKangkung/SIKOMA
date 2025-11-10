@@ -725,13 +725,14 @@ export async function getHeaderNotifications(req, res) {
     let joinRequests = [];
     if (role === "admin") {
       // cari member dengan status pending / requested / belum approved
-    //   joinRequests = (org.members || []).filter((m) => {
-    //     const st = String(m?.status || "").toLowerCase();
-    //     const pendingLike = st === "pending" || st === "requested";
-    //     const notApproved = m?.isApproved === false;
-    //     return pendingLike || notApproved;
-    //   });
-        joinRequests = Array.isArray(org.joinRequests) ? org.joinRequests : [];
+      joinRequests = (org.members || []).filter((m) => {
+        const st = String(m?.status || "").toLowerCase();
+        const pendingLike = st === "pending" || st === "requested";
+        const notApproved = m?.isApproved === false;
+        return pendingLike || notApproved;
+      });
+      
+        // joinRequests = Array.isArray(org.joinRequests) ? org.joinRequests : [];
     }
 
     // --- Accepted (khusus member) ---
@@ -751,10 +752,21 @@ export async function getHeaderNotifications(req, res) {
 
     if (role === "admin") {
       for (const r of joinRequests.slice(0, 10)) {
+            const u = r?.user || {}; // bisa ObjectId atau populated object
+            const who =
+              u?.username ||
+              u?.email ||
+              r?.username ||
+              r?.email ||
+              (typeof u === "string"
+                ? `user:${u.slice(-6)}`
+                : u?._id
+                ? `user:${String(u._id).slice(-6)}`
+                : "Unknown");
         items.push({
           type: "join_request",
           id: String(r.user?._id || r.user),
-          title: (r.user?.username || r.user?.email || "Unknown") + " meminta bergabung",
+          title: (r.user?.username || r.user?.email || "Unknown") + " request to join",
           createdAt: r.requestedAt || r.createdAt || org.updatedAt || new Date(),
           link: `/${String(org._id)}/member`, // arahkan ke halaman manajemen member
         });

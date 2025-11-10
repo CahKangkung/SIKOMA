@@ -2,7 +2,18 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useUser } from "../context/UserContext";
-import { User as UserIcon, IdCard, LogOut, ArrowLeft, Bell, FilePlus2, Users, CheckCircle2, XCircle, Cog } from "lucide-react";
+import {
+  User as UserIcon,
+  IdCard,
+  LogOut,
+  ArrowLeft,
+  Bell,
+  FilePlus2,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Cog,
+} from "lucide-react";
 
 export default function Header({ title }) {
   const { user, clearUser } = useUser();
@@ -18,13 +29,13 @@ export default function Header({ title }) {
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifData, setNotifData] = useState({
     role: null,
-    counts: { newDocs: 0, joinRequests: 0, accepted: 0 },
+    counts: { newDocs: 0, joinRequests: 0, accepted: 0, statusUpdates: 0 },
     total: 0,
     items: [],
   });
   const notifRef = useRef(null);
 
-  // Base URL API (pakai env kalau ada, fallback ke localhost)
+  // Base URL API
   const API_BASE = import.meta.env?.VITE_API_BASE || "http://localhost:8080/api";
 
   const lastDocsKey = paramId ? `notif_last_docs_${paramId}` : null;
@@ -37,7 +48,7 @@ export default function Header({ title }) {
     try {
       sinceDocsAt = localStorage.getItem(lastDocsKey) || "";
       sinceStatusAt = localStorage.getItem(lastStatusKey) || "";
-    } catch (_) {}
+    } catch {}
     return { sinceDocsAt, sinceStatusAt };
   }, [paramId, lastDocsKey, lastStatusKey]);
 
@@ -66,14 +77,14 @@ export default function Header({ title }) {
           statusUpdates: Number(base?.counts?.statusUpdates || 0),
         };
 
-        // Perbaiki tautan dokumen baru agar mengarah ke /manage-document/
+        // Pastikan link doc baru mengarah ke manage-document
         items = items.map((it) =>
           it.type === "doc_new"
             ? { ...it, link: it.link?.replace("/view-doc/", "/manage-document/") }
             : it
         );
 
-        // Admin: merge join request dari /requests jika belum ada
+        // Admin: fallback merge dari /requests jika counts.joinRequests = 0
         if (role === "admin" && counts.joinRequests === 0) {
           try {
             const r2 = await fetch(`${API_BASE}/organization/${paramId}/requests`, {
@@ -88,13 +99,28 @@ export default function Header({ title }) {
                 : Array.isArray(jr?.data)
                 ? jr.data
                 : [];
-              const joinItems = reqs.map((r) => ({
-                type: "join_request",
-                id: String(r?.user?._id || r?.user || Math.random()),
-                title: `${r?.user?.username || r?.user?.email || "Unknown"} meminta bergabung`,
-                createdAt: r?.requestedAt || r?.createdAt || new Date().toISOString(),
-                link: `/${paramId}/members`,
-              }));
+              const joinItems = reqs.map((r) => {
+                const u = r?.user || {};
+                const who =
+                  u?.username ||
+                  u?.email ||
+                  r?.username ||
+                  r?.email ||
+                  (typeof u === "string"
+                    ? `user:${u.slice(-6)}`
+                    : u?._id
+                    ? `user:${String(u._id).slice(-6)}`
+                    : "Unknown");
+                const when =
+                  r?.requestedAt || r?.createdAt || r?.updatedAt || new Date().toISOString();
+                return {
+                  type: "join_request",
+                  id: String(u?._id || u || Math.random()),
+                  title: `${who} meminta bergabung`,
+                  createdAt: when,
+                  link: `/${paramId}/member`,
+                };
+              });
               counts.joinRequests = joinItems.length;
               items = [...joinItems, ...items]
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -107,13 +133,17 @@ export default function Header({ title }) {
           role,
           items,
           counts,
-          total: counts.newDocs + counts.joinRequests + counts.accepted + counts.statusUpdates,
+          total:
+            counts.newDocs +
+            counts.joinRequests +
+            counts.accepted +
+            counts.statusUpdates,
         });
       } catch (e) {
         console.error("Notif load error (org):", e);
         setNotifData({
           role: null,
-          counts: { newDocs: 0, joinRequests: 0, accepted: 0 },
+          counts: { newDocs: 0, joinRequests: 0, accepted: 0, statusUpdates: 0 },
           total: 0,
           items: [],
         });
@@ -123,7 +153,7 @@ export default function Header({ title }) {
       return;
     }
 
-    // === MODE HOME ===
+    // === MODE HOME === (tanpa orgId)
     try {
       setNotifLoading(true);
       const r = await fetch(`${API_BASE}/organization/my`, { credentials: "include" });
@@ -165,6 +195,7 @@ export default function Header({ title }) {
           newDocs: 0,
           joinRequests: 0,
           accepted: items.filter((i) => i.type === "membership_accepted").length,
+          statusUpdates: 0,
         },
         total: items.length,
       });
@@ -172,7 +203,7 @@ export default function Header({ title }) {
       console.error("Notif load error (home):", e);
       setNotifData({
         role: "member",
-        counts: { newDocs: 0, joinRequests: 0, accepted: 0 },
+        counts: { newDocs: 0, joinRequests: 0, accepted: 0, statusUpdates: 0 },
         total: 0,
         items: [],
       });
@@ -197,10 +228,10 @@ export default function Header({ title }) {
     try {
       if (lastDocsKey) localStorage.setItem(lastDocsKey, now);
       if (lastStatusKey) localStorage.setItem(lastStatusKey, now);
-    } catch (_) {}
+    } catch {}
   }
 
-  // Tutup dropdown saat klik di luar / tekan Escape
+  // Tutup dropdown saat klik di luar / Escape
   useEffect(() => {
     const onClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
@@ -226,7 +257,7 @@ export default function Header({ title }) {
     if (!paramId) return;
     const t = setInterval(loadNotifications, 30000); // refresh 30 detik
     return () => clearInterval(t);
-  }, [paramId]);
+  }, [paramId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Logout handler
   const handleLogout = async () => {
@@ -242,10 +273,25 @@ export default function Header({ title }) {
     }
   };
 
-  // === Perbaikan tombol back ===
-  const isHome = location.pathname === "/home" || location.pathname === "/";
+  // Back button: sembunyikan di /home & /
+  const path = location.pathname;
+  const isHome = path === "/" || path === "/home";
+
+  // HANYA tiga halaman ini yang wajib balik ke /home
+  const BACK_TO_HOME = new Set(["/home/current", "/home/new", "/home/join"]);
+  const shouldBackToHome = BACK_TO_HOME.has(path);
+
   const showBackButton =
     !isHome && (!paramId || (paramId && location.pathname.includes("/settings")));
+
+  const onBackClick = () => {
+    if (shouldBackToHome) {
+      // Pakai replace supaya tidak “loop” balik ke form
+      navigate("/home", { replace: true });
+    } else {
+      navigate(-1);
+    }
+  };
 
   // Toggle dropdown notifikasi + tandai read
   const onToggleNotif = async () => {
@@ -264,7 +310,7 @@ export default function Header({ title }) {
       <div className="flex items-center gap-4">
         {showBackButton && (
           <button
-            onClick={() => navigate(-1)}
+            onClick={onBackClick}
             className="flex items-center gap-2 text-[#23358B] font-medium hover:opacity-80"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -310,7 +356,10 @@ export default function Header({ title }) {
                         navigate(it.link);
                       }
                     };
-                    const when = it.createdAt ? new Date(it.createdAt).toLocaleString("id-ID") : "";
+                    const when = it.createdAt
+                      ? new Date(it.createdAt).toLocaleString("id-ID")
+                      : "";
+
                     let Icon = Users;
                     let iconCls = "text-green-600";
                     if (it.type === "join_request") {
@@ -331,6 +380,7 @@ export default function Header({ title }) {
                         iconCls = "text-yellow-600";
                       }
                     }
+
                     return (
                       <a
                         key={`${it.type}-${it.id}`}
@@ -353,6 +403,17 @@ export default function Header({ title }) {
                     {paramId ? "No new notifications" : "Open organization to see notifications"}
                   </div>
                 )}
+              </div>
+
+              {/* Ringkasan singkat di footer dropdown */}
+              <div className="flex items-center justify-between bg-gray-50 px-4 py-2 text-xs text-gray-600">
+                <div>Docs baru: <b>{notifData?.counts?.newDocs || 0}</b></div>
+                {notifData?.role === "admin" ? (
+                  <div>Join requests: <b>{notifData?.counts?.joinRequests || 0}</b></div>
+                ) : (
+                  <div>Accepted: <b>{notifData?.counts?.accepted || 0}</b></div>
+                )}
+                <div>Updates: <b>{notifData?.counts?.statusUpdates || 0}</b></div>
               </div>
             </div>
           )}

@@ -118,7 +118,7 @@ export default function LoginPage() {
           {/* Remember & Forgot */}
           <div className="mt-2 flex items-center justify-between text-sm">
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="accent-[#23358B]" /> Remember me
+              {/* <input type="checkbox" className="accent-[#23358B]" /> Remember me */}
             </label>
             <Link to="/forgot" className="text-[#23358B] hover:underline">
               Forgot Password?

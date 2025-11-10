@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { listDocs, deleteDoc, search as searchApi } from "../../Services/api";
 import { useNavigate, useParams } from "react-router-dom";
+import { useUser } from "../../context/UserContext";
 import Sidebar from "../../components/SideBar";
 import Header from "../../components/Header";
 
@@ -34,6 +35,9 @@ function toDateStr(v) {
 export default function ManageDocs() {
   const { id: orgId } = useParams();
   const navigate = useNavigate();
+
+  const { user } = useUser();
+  const userId = user?.id || user?._id;
 
   const [docs, setDocs] = useState([]);
   const [docMap, setDocMap] = useState({});
@@ -124,6 +128,8 @@ export default function ManageDocs() {
         createdByUser: d.createdByUser, // post commit 4
         uploadDate: toDateStr(d.uploadDate || d.createdAt),
         status: d.status || "On Review",
+        isAdmin: d.isAdmin === true || d.isAdmin === "true",
+        isAuthor: d.isAuthor === true || d.isAuthor === "true",
       }));
       setDocs(normalized);
 
@@ -218,19 +224,6 @@ export default function ManageDocs() {
       }
     );
   };
-  // --------------KODE LAMA--------------------
-  // const doDelete = async (id) => {
-  //   if (!confirm("Hapus dokumen ini?")) return;
-  //   try {
-  //     await deleteDoc(id, orgId);
-  //     await loadDocs();
-  //     if (q.trim()) runSearch(q);
-  //   } catch (e) {
-  //     console.error(e);
-  //     alert("Gagal menghapus dokumen.");
-  //     return;
-  //   }
-  // };
 
   const showingSearch =
     q.trim().length > 0 && (loadingSearch || hits.length > 0);
@@ -242,6 +235,22 @@ export default function ManageDocs() {
     if (user.username && user.username.startsWith("[deleted_")) return "-";
     return user.username || "Unknown";
   };
+
+  function canDeleteDoc(meta) {
+    // Normalisasi aman terhadap boolean/string
+    const admin =
+      meta?.isAdmin === true || meta?.isAdmin === "true";
+    const author =
+      meta?.isAuthor === true || meta?.isAuthor === "true";
+    if (typeof meta?.isAdmin !== "undefined" || typeof meta?.isAuthor !== "undefined") {
+      return admin || author;
+    }
+    // Fallback (seandainya flag tak ada—mestinya tidak terjadi)
+    const createdById =
+      meta?.createdById ||
+      String(meta?.createdBy || meta?.createdByUser?._id || "");
+    return Boolean(createdById && String(createdById) === String(userId));
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -354,6 +363,7 @@ export default function ManageDocs() {
                         >
                           👁️
                         </button>
+                        {canDeleteDoc(meta) && (
                         <button
                           className="rounded-full border border-rose-200 px-2.5 py-1 text-rose-600 hover:bg-rose-50"
                           title="Delete"
@@ -361,6 +371,7 @@ export default function ManageDocs() {
                         >
                           🗑️
                         </button>
+                        )}
                       </div>
                       <div className="col-span-5 h-px w-full bg-gray-100 mt-3" />
                     </div>

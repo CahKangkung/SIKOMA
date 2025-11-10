@@ -198,7 +198,7 @@ Deployment: Coming soon 🚀
 | **Adhia Dinda Sofia Afifah Masyhur** | Backend Engineer   |
 | **Eliyanti**                         | Frontend Engineer  |
 | **Rahmat Dipo Setyadin**             | Fullstack Engineer |
-| **Tulus Pardamean Simanjuntak**      | Project Planner          |
+| **Tulus Pardamean Simanjuntak**      | Product Lead          |
 | **Yosua Siregar**                    | Project Planner          |
 
 --- 
