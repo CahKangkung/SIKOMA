@@ -187,16 +187,17 @@ export default function DashboardPage() {
           </div> */}
 
           {/* 2 kolom: kiri = detail (box putih), kanan = cards stats */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-2 gap-6">
-            {/* KIRI: Detail organisasi */}
-            <div className="lg:col-span-1 lg:row-span-2">
-              <div className="bg-white rounded-xl shadow-sm ring-1 ring-black/5 p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          {/* Kolom kiri (detail organisasi) */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-sm ring-1 ring-black/5 p-6 h-full flex flex-col justify-between">
+              <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-4">
                   Organization's Detail
                 </h4>
 
                 {org ? (
-                  <div className="space-y-2 text-sm text-slate-700 leading-6">
+                  <div className="space-y-3 text-sm text-slate-700 leading-6">
                     <div className="flex justify-between">
                       <span className="text-slate-500">Author</span>
                       <span className="font-medium">
@@ -210,8 +211,7 @@ export default function DashboardPage() {
                     <div className="flex justify-between">
                       <span className="text-slate-500">Your Role</span>
                       <span className="font-medium">
-                        {org.members.find((m) => m.user._id === userId)?.role ||
-                          "Unknown"}
+                        {org.members.find((m) => m.user._id === userId)?.role || "Unknown"}
                       </span>
                     </div>
                   </div>
@@ -220,42 +220,37 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
+          </div>
 
-            {/* KANAN: 4 kartu statistik (grid 2x2) */}
-            <div className="lg:col-span-2 ">
-              <div className="lg:col-span-2 lg:row-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Card
-                  title="Uploaded"
-                  value={stats.uploaded ?? 0}
-                  color="bg-blue-50"
-                  text="text-blue-700"
-                />
-                <Card
-                  title="On Review"
-                  value={stats.onReview ?? 0}
-                  color="bg-yellow-50"
-                  text="text-yellow-700"
-                />
-                <Card
-                  title="Approved"
-                  value={stats.approved ?? 0}
-                  color="bg-green-50"
-                  text="text-green-700"
-                />
-                <Card
-                  title="Rejected"
-                  value={stats.rejected ?? 0}
-                  color="bg-red-50"
-                  text="text-red-700"
-                />
-              </div>
+          {/* Kolom kanan (statistik) */}
+          <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+            <div className="rounded-xl bg-blue-50 p-6 text-center">
+              <h4 className="text-sm font-semibold text-blue-700">Uploaded</h4>
+              <div className="text-3xl font-bold text-blue-800 mt-2">{stats.uploaded}</div>
+            </div>
+
+            <div className="rounded-xl bg-yellow-50 p-6 text-center">
+              <h4 className="text-sm font-semibold text-yellow-700">On Review</h4>
+              <div className="text-3xl font-bold text-yellow-800 mt-2">{stats.onReview}</div>
+            </div>
+
+            <div className="rounded-xl bg-green-50 p-6 text-center">
+              <h4 className="text-sm font-semibold text-green-700">Approved</h4>
+              <div className="text-3xl font-bold text-green-800 mt-2">{stats.approved}</div>
+            </div>
+
+            <div className="rounded-xl bg-rose-50 p-6 text-center">
+              <h4 className="text-sm font-semibold text-rose-700">Rejected</h4>
+              <div className="text-3xl font-bold text-rose-800 mt-2">{stats.rejected}</div>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
-  );
-}
+        </div>
+
+                </main>
+              </div>
+            </div>
+          );
+        }
 
 function Card({ title, value, color, text }) {
   return (
