@@ -124,10 +124,10 @@ export default function ManageDocs() {
         id: String(d._id),
         title: d.title || d.subject || "(untitled)",
         recipient: d.recipient || "-",
-        // createdBy: d.createdByUser?.username || "Unknown",
-        createdByUser: d.createdByUser, // post commit 4
+        createdByUser: d.createdByUser,
         uploadDate: toDateStr(d.uploadDate || d.createdAt),
         status: d.status || "On Review",
+        // normalisasi boolean aman dari server
         isAdmin: d.isAdmin === true || d.isAdmin === "true",
         isAuthor: d.isAuthor === true || d.isAuthor === "true",
       }));
@@ -194,41 +194,13 @@ export default function ManageDocs() {
         setLoadingSearch(false);
       }
     },
-    [q]
+    [q, orgId]
   );
 
   const clearSearch = () => setHits([]);
 
-  const doDelete = (id) => {
-    showConfirm(
-      "Delete Document?",
-      "This action cannot be undone.",
-      async () => {
-        try {
-          await deleteDoc(id, orgId);
-          await loadDocs();
-          if (q.trim()) runSearch(q);
-          showNotification(
-            "success",
-            "Deleted",
-            "The document has been deleted."
-          );
-        } catch (e) {
-          console.error(e);
-          showNotification(
-            "error",
-            "Deletion Failed",
-            "Failed to delete the document. Please try again."
-          );
-        }
-      }
-    );
-  };
-
-  const showingSearch =
-    q.trim().length > 0 && (loadingSearch || hits.length > 0);
-
-  //post commit 4
+  /* ---------------- Permisison Helpers ----------------- */
+  // Tampilkan nama user (aman terhadap user terhapus)
   const displayUsername = (user) => {
     if (!user) return "(Deleted User)";
     if (user.isDeleted) return "(Deleted User)";
@@ -236,21 +208,54 @@ export default function ManageDocs() {
     return user.username || "Unknown";
   };
 
+  // Hanya admin/author yang boleh delete
   function canDeleteDoc(meta) {
-    // Normalisasi aman terhadap boolean/string
-    const admin =
-      meta?.isAdmin === true || meta?.isAdmin === "true";
-    const author =
-      meta?.isAuthor === true || meta?.isAuthor === "true";
+    const admin = meta?.isAdmin === true || meta?.isAdmin === "true";
+    const author = meta?.isAuthor === true || meta?.isAuthor === "true";
     if (typeof meta?.isAdmin !== "undefined" || typeof meta?.isAuthor !== "undefined") {
       return admin || author;
     }
-    // Fallback (seandainya flag tak ada—mestinya tidak terjadi)
+    // Fallback (kalau flag tak ada)
     const createdById =
       meta?.createdById ||
       String(meta?.createdBy || meta?.createdByUser?._id || "");
     return Boolean(createdById && String(createdById) === String(userId));
   }
+
+  // Ambil meta by id untuk guard handler
+  function hasDeleteAccessById(id) {
+    const meta = docMap[id] || docs.find((d) => d.id === id);
+    return meta ? canDeleteDoc(meta) : false;
+  }
+
+  /* ---------------- Delete Handler (guarded) ----------------- */
+  const doDelete = (id) => {
+    // Safety guard: cegah eksekusi kalau tak berhak
+    if (!hasDeleteAccessById(id)) {
+      return showNotification(
+        "error",
+        "Not Allowed",
+        "You don’t have permission to delete this document."
+      );
+    }
+    showConfirm("Delete Document?", "This action cannot be undone.", async () => {
+      try {
+        await deleteDoc(id, orgId);
+        await loadDocs();
+        if (q.trim()) runSearch(q);
+        showNotification("success", "Deleted", "The document has been deleted.");
+      } catch (e) {
+        console.error(e);
+        showNotification(
+          "error",
+          "Deletion Failed",
+          "Failed to delete the document. Please try again."
+        );
+      }
+    });
+  };
+
+  const showingSearch = q.trim().length > 0 && (loadingSearch || hits.length > 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -315,14 +320,15 @@ export default function ManageDocs() {
 
             {showingSearch ? (
               loadingSearch ? (
-                <div className="px-3 py-4 text-sm text-gray-500">
-                  Searching…
-                </div>
+                <div className="px-3 py-4 text-sm text-gray-500">Searching…</div>
               ) : hits.length ? (
                 hits.map((h, i) => {
                   const key = String(h.docId);
                   const meta = docMap[key] || {};
                   const displayStatus = prettyStatus(meta.status);
+
+                  const deletable = canDeleteDoc(meta);
+
                   return (
                     <div
                       key={i}
@@ -330,49 +336,44 @@ export default function ManageDocs() {
                     >
                       <div>
                         <div className="font-semibold text-gray-800">
-                          {meta.title ||
-                            meta.subject ||
-                            `(Doc ${key.slice(-6)})`}
+                          {meta.title || meta.subject || `(Doc ${key.slice(-6)})`}
                         </div>
-
                         <div className="mt-1 line-clamp-2 text-xs text-gray-500">
                           {h.text || ""}
                         </div>
                       </div>
-                      {/* <div className="text-gray-700">{meta.author || "—"}</div>*/}{" "}
-                      {/* post commit 4 comment */}
-                      <div className="text-gray-700">
-                        {displayUsername(meta.createdByUser)}
-                      </div>{" "}
-                      {/* post commit 4 */}
+
+                      <div className="text-gray-700">{displayUsername(meta.createdByUser)}</div>
                       <div className="text-gray-700">
                         {toDateStr(meta.uploadDate || meta.createdAt)}
                       </div>
-                      <div
-                        className={`${statusClass(displayStatus)} font-medium`}
-                      >
+                      <div className={`${statusClass(displayStatus)} font-medium`}>
                         {displayStatus}
                       </div>
+
                       <div className="flex items-center justify-center gap-2">
                         <button
                           className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
                           title="View"
-                          onClick={() =>
-                            navigate(`/${orgId}/manage-document/${key}`)
-                          }
+                          onClick={() => navigate(`/${orgId}/manage-document/${key}`)}
                         >
                           👁️
                         </button>
-                        {canDeleteDoc(meta) && (
+
                         <button
-                          className="rounded-full border border-rose-200 px-2.5 py-1 text-rose-600 hover:bg-rose-50"
-                          title="Delete"
-                          onClick={() => doDelete(key)}
+                          className={`rounded-full border px-2.5 py-1 ${
+                            deletable
+                              ? "border-rose-200 text-rose-600 hover:bg-rose-50"
+                              : "border-gray-200 text-gray-400 opacity-40 cursor-not-allowed"
+                          }`}
+                          title={deletable ? "Delete" : "You don’t have permission to delete"}
+                          disabled={!deletable}
+                          onClick={() => deletable && doDelete(key)}
                         >
                           🗑️
                         </button>
-                        )}
                       </div>
+
                       <div className="col-span-5 h-px w-full bg-gray-100 mt-3" />
                     </div>
                   );
@@ -387,52 +388,49 @@ export default function ManageDocs() {
             ) : docs.length ? (
               docs.map((d) => {
                 const displayStatus = prettyStatus(d.status);
+                const deletable = canDeleteDoc(d);
+
                 return (
                   <div
                     key={d.id}
                     className="grid grid-cols-[minmax(220px,1.5fr)_1fr_1fr_1fr_100px] items-center px-3 py-3 text-sm"
                   >
-                    <div className="text-gray-800">
-                      {d.title || "(tanpa subjek)"}
-                    </div>
-                    {/* <div className="text-gray-700">{d.createdBy}</div> */}{" "}
-                    {/* post commit 4 comment*/}
-                    <div className="text-gray-700">
-                      {displayUsername(d.createdByUser)}
-                    </div>{" "}
-                    {/* post commit 4 */}
+                    <div className="text-gray-800">{d.title || "(tanpa subjek)"}</div>
+                    <div className="text-gray-700">{displayUsername(d.createdByUser)}</div>
                     <div className="text-gray-700">{d.uploadDate}</div>
-                    <div
-                      className={`${statusClass(displayStatus)} font-medium`}
-                    >
+                    <div className={`${statusClass(displayStatus)} font-medium`}>
                       {displayStatus}
                     </div>
+
                     <div className="flex items-center justify-center gap-2">
                       <button
                         className="rounded-full border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-indigo-50"
                         title="View"
-                        onClick={() =>
-                          navigate(`/${orgId}/manage-document/${d.id}`)
-                        }
+                        onClick={() => navigate(`/${orgId}/manage-document/${d.id}`)}
                       >
                         👁️
                       </button>
+
                       <button
-                        className="rounded-full border border-rose-200 px-2.5 py-1 text-rose-600 hover:bg-rose-50"
-                        title="Delete"
-                        onClick={() => doDelete(d.id)}
+                        className={`rounded-full border px-2.5 py-1 ${
+                          deletable
+                            ? "border-rose-200 text-rose-600 hover:bg-rose-50"
+                            : "border-gray-200 text-gray-400 opacity-40 cursor-not-allowed"
+                        }`}
+                        title={deletable ? "Delete" : "You don’t have permission to delete"}
+                        disabled={!deletable}
+                        onClick={() => deletable && doDelete(d.id)}
                       >
                         🗑️
                       </button>
                     </div>
+
                     <div className="col-span-5 h-px w-full bg-gray-100 mt-3" />
                   </div>
                 );
               })
             ) : (
-              <div className="px-3 py-4 text-sm text-gray-500">
-                No documents.
-              </div>
+              <div className="px-3 py-4 text-sm text-gray-500">No documents.</div>
             )}
           </div>
         </main>
