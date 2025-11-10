@@ -137,7 +137,7 @@ export default function Header({ title }) {
         items.push({
           type: "join_pending",
           id: `pending-${org._id}`,
-          title: `Menunggu persetujuan di ${org.name}`,
+          title: `Waiting for approval ${org.name}`,
           createdAt: org.updatedAt || nowISO,
           link: `/home`,
         });
@@ -149,7 +149,7 @@ export default function Header({ title }) {
         items.push({
           type: "membership_accepted",
           id: `accepted-${org._id}`,
-          title: `Diterima bergabung di ${org.name}`,
+          title: `Accepted by ${org.name}`,
           createdAt: acceptedAt,
           link: `/${org._id}/dashboard`,
         });
@@ -279,7 +279,7 @@ export default function Header({ title }) {
           <button
             onClick={onToggleNotif}
             className="relative rounded-full p-2 text-[#23358B] hover:bg-indigo-50"
-            title={paramId ? "Notifications" : "Buka organisasi untuk melihat notifikasi"}
+            title={paramId ? "Notifications" : "Open organization to see notifications"}
             aria-haspopup="menu"
             aria-expanded={notifOpen}
           >
@@ -337,22 +337,7 @@ export default function Header({ title }) {
                   })
                 ) : (
                   <div className="px-4 py-8 text-center text-sm text-gray-500">
-                    {paramId ? "Tidak ada notifikasi baru" : "Buka organisasi untuk melihat notifikasi"}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between bg-gray-50 px-4 py-2 text-xs text-gray-600">
-                <div>
-                  Docs baru: <b>{notifData?.counts?.newDocs || 0}</b>
-                </div>
-                {notifData?.role === "admin" ? (
-                  <div>
-                    Join requests: <b>{notifData?.counts?.joinRequests || 0}</b>
-                  </div>
-                ) : (
-                  <div>
-                    Accepted: <b>{notifData?.counts?.accepted || 0}</b>
+                    {paramId ? "No new notifications" : "Open organization to see notifications"}
                   </div>
                 )}
               </div>
