@@ -1,0 +1,18 @@
+[Unit]
+Description=SIKOMA Backend API Service
+After=network.target mongodb.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/SIKOMA/backend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=sikoma-backend
+
+[Install]
+WantedBy=multi-user.target
