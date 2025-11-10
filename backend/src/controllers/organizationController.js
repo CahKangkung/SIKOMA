@@ -1,5 +1,8 @@
 import express from "express";
 import Organization from "../models/Organization.js";
+import { getDocumentDB } from "../services/db.js";
+import { ObjectId } from "mongodb";
+import { auth } from "../middlewares/authMiddleware.js";
 
 // ======================= CREATE ORG =======================
 export const createOrg = async (req, res) => {
@@ -93,8 +96,9 @@ export const deleteOrg = async (req, res) => {
             return res.status(400).json({error: "Cannot delete organization while member still exist"});
         }
 
+        const orgName = org.name;
         await org.deleteOne();
-        res.json({ message: "Organization deleted successfully" });
+        res.json({ message: "Organization deleted successfully", name: orgName });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -105,11 +109,21 @@ export const availableOrg = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        const orgs = await Organization.find({
+        /* const orgs = await Organization.find({
             "members.user": { $ne: userId } // Cari semua organisasi yang tidak memiliki anggota dengan userId ini.
         })
             .select("-members") // opsional: hide members list
             .populate("createdBy", "username email"); // ambil name dari pembuat organisasi
+        */ // post commit 4 comment
+
+        const orgs = await Organization.find({
+            $and: [
+                { "members.user": { $ne: userId } },        // belum jadi member
+                { "joinRequests.user": { $ne: userId } }    // belum pernah request
+            ]
+        })
+            .select("-members -joinRequests")
+            .populate("createdBy", "username email");
 
         res.json(orgs);
     
@@ -459,6 +473,127 @@ export const getOrg = async (req, res) => {
     }
 };
 
+// ======================= ORG DASHBOARD STATS =======================
+export const getOrgDashboardStats = async (req, res) => {
+  const where = "[getOrgDashboardStats]";
+  try {
+    const { id } = req.params;
+
+    // ---- Guard req.user ----
+    if (!req.user || !(req.user.id || req.user._id)) {
+      console.error(where, "Missing req.user. Did authMiddleware run?");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // ---- IDs ----
+    const orgObjId = ObjectId.isValid(id) ? new ObjectId(id) : id;
+    const userIdStr = String(req.user.id || req.user._id);
+    const userObjId = ObjectId.isValid(userIdStr) ? new ObjectId(userIdStr) : null;
+
+    // ---- DB / collection ----
+    const db = getDocumentDB();
+    if (!db) {
+      console.error(where, "getDocumentDB() returned null/undefined");
+      return res.status(500).json({ error: "DB not initialized" });
+    }
+    const lettersCol = db.collection("letters");
+
+    // ------------------------------------------------------------------
+    // CHANGED: Ambil info organisasi & tentukan role SEBELUM membangun baseMatch
+    // ------------------------------------------------------------------
+    const org = await Organization.findById(orgObjId)
+      .populate("createdBy", "username email")
+      .populate("members.user", "username email")
+      .populate("joinRequests.user", "username email")
+      .lean();
+
+    if (!org) {
+      console.error(where, "Organization not found:", id);
+      return res.status(404).json({ error: "Organization not found" });
+    }
+
+    let role = "member";
+    const isOwner = String(org.createdBy?._id || org.createdBy) === userIdStr;
+    if (isOwner) role = "admin";
+    else if (Array.isArray(org.members)) {
+      const me = org.members.find((m) => String(m.user?._id || m.user) === userIdStr);
+      if (me?.role) role = me.role;
+    }
+
+    // ------------------------------------------------------------------
+    // CHANGED: Bangun baseMatch berdasarkan role
+    // - Admin: lihat semua dokumen di organisasi (tanpa filter uploader/recipient)
+    // - Member: filter seperti sebelumnya (saya pengunggah / saya penerima / publik ke org)
+    //   Disederhanakan agar tidak duplikatif & lebih aman untuk array/scalar
+    // ------------------------------------------------------------------
+    let baseMatch;
+    const idCandidates = [userIdStr, userObjId].filter(Boolean); // ["stringId", ObjectId] jika ada
+
+    if (role === "admin") {
+      baseMatch = {
+        organizationId: orgObjId,
+        // Jika ada soft-delete/arsip di skema Anda, pertimbangkan menambah filter di sini.
+        // deletedAt: { $exists: false },
+      };
+    } else {
+      baseMatch = {
+        organizationId: orgObjId,
+        $or: [
+          { createdBy: { $in: idCandidates } },
+          { recipients: { $in: idCandidates } }, // cocok untuk field array ataupun scalar
+          { recipientsMode: "all" },              // visibilitas ke seluruh organisasi
+        ],
+      };
+    }
+
+    console.log(where, "orgId:", id, "user:", userIdStr, "role:", role);
+    console.log(where, "baseMatch:", JSON.stringify(baseMatch));
+
+    // ---- Aggregation (tidak berubah) ----
+    const byStatus = await lettersCol
+      .aggregate([
+        { $match: baseMatch },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
+      ])
+      .toArray();
+
+    console.log(where, "byStatus:", byStatus);
+
+    // ---- Map counts (tetap) ----
+    const counts = { uploaded: 0, onReview: 0, approved: 0, rejected: 0 };
+    const mapKey = (k) => {
+      const norm = String(k ?? "").toLowerCase();
+      if (["on_review", "review", "onreview", "pending_review", "on review"].includes(norm)) return "onReview";
+      if (["approved", "approve", "accepted"].includes(norm)) return "approved";
+      if (["rejected", "reject", "declined"].includes(norm)) return "rejected";
+      if (["uploaded", "upload", "draft", "new"].includes(norm)) return "uploaded";
+      return null;
+    };
+    for (const row of byStatus) {
+      const key = mapKey(row?._id);
+      if (key) counts[key] = row?.count ?? 0;
+    }
+
+    // ---- Response payload (role sudah dihitung di atas) ----
+    const payload = {
+      organization: {
+        id: String(org._id),
+        name: org.name,
+        author: org.createdBy?.username || org.createdBy?.email || String(org.createdBy),
+        totalMembers: org.members?.length ?? 0,
+        role,
+      },
+      stats: counts,
+    };
+
+    console.log(where, "response:", payload);
+    return res.json(payload);
+  } catch (err) {
+    console.error("[getOrgDashboardStats] ERROR:", err);
+    return res.status(500).json({ error: err?.message || "Internal Server Error" });
+  }
+};
+
 // ======================= GET ALL ORG =======================
 // const listAllOrg = async (req, res) => {
 //     try {
@@ -468,3 +603,191 @@ export const getOrg = async (req, res) => {
 //         res.status(500).json({ error: err.message });
 //     }
 // };
+
+const asObjId = (v) => (ObjectId.isValid(String(v)) ? new ObjectId(String(v)) : String(v));
+const sameId = (a, b) => String(a) === String(b);
+
+export async function getHeaderNotifications(req, res) {
+  const where = "[getHeaderNotifications]";
+  try {
+    const { id } = req.params;
+    if (!req.user || !(req.user.id || req.user._id)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const orgObjId = asObjId(id);
+    const userIdStr = String(req.user.id || req.user._id);
+    const userObjId = asObjId(userIdStr);
+
+    // Ambil organisasi untuk tentukan role & metadata member
+    const org = await Organization.findById(orgObjId)
+      .populate("createdBy", "username email")
+      .populate("members.user", "username email")
+      .lean();
+
+    if (!org) return res.status(404).json({ error: "Organization not found" });
+
+    let role = "member";
+    const isOwner = sameId(org.createdBy?._id || org.createdBy, userIdStr);
+    if (isOwner) role = "admin";
+    else if (Array.isArray(org.members)) {
+      const me = org.members.find((m) => sameId(m.user?._id || m.user, userIdStr));
+      if (me?.role) role = me.role;
+    }
+
+    // Ambil "last seen" dari members[] jika ada (fallback: 1970)
+    const me = (org.members || []).find((m) => sameId(m.user?._id || m.user, userIdStr));
+    const docsSeenAt =
+      (me?.docsSeenAt && new Date(me.docsSeenAt)) ||
+      (req.query.sinceDocsAt ? new Date(req.query.sinceDocsAt) : new Date(0));
+    const statusSeenAt =
+      (me?.statusSeenAt && new Date(me.statusSeenAt)) ||
+      (req.query.sinceStatusAt ? new Date(req.query.sinceStatusAt) : new Date(0));
+
+    const db = getDocumentDB();
+    const lettersCol = db.collection("letters");
+
+    // --- New docs ---
+    let newDocs = [];
+    if (role === "admin") {
+      // admin: semua dokumen dalam org sejak docsSeenAt
+      const match = {
+        organizationId: orgObjId,
+        $or: [{ createdAt: { $gt: docsSeenAt } }, { uploadDate: { $gt: docsSeenAt } }],
+      };
+      newDocs = await lettersCol
+        .find(match, { projection: { title: 1, createdBy: 1, createdAt: 1, uploadDate: 1 } })
+        .sort({ uploadDate: -1, createdAt: -1 })
+        .limit(10)
+        .toArray();
+    } else {
+      // member: dokumen baru yang ditujukan ke member (atau untuk semua)
+      const idCandidates = [userIdStr, userObjId].filter(Boolean);
+      const match = {
+        organizationId: orgObjId,
+        $and: [{ $or: [{ createdAt: { $gt: docsSeenAt } }, { uploadDate: { $gt: docsSeenAt } }] }],
+        $or: [{ recipients: { $in: idCandidates } }, { recipientsMode: "all" }],
+        // opsional: jangan notif dokumen yang dia sendiri upload
+        createdBy: { $nin: idCandidates },
+      };
+      newDocs = await lettersCol
+        .find(match, { projection: { title: 1, createdBy: 1, createdAt: 1, uploadDate: 1 } })
+        .sort({ uploadDate: -1, createdAt: -1 })
+        .limit(10)
+        .toArray();
+    }
+
+    // --- Join requests (khusus admin) ---
+    let joinRequests = [];
+    if (role === "admin") {
+      // cari member dengan status pending / requested / belum approved
+    //   joinRequests = (org.members || []).filter((m) => {
+    //     const st = String(m?.status || "").toLowerCase();
+    //     const pendingLike = st === "pending" || st === "requested";
+    //     const notApproved = m?.isApproved === false;
+    //     return pendingLike || notApproved;
+    //   });
+        joinRequests = Array.isArray(org.joinRequests) ? org.joinRequests : [];
+    }
+
+    // --- Accepted (khusus member) ---
+    let accepted = null;
+    if (role !== "admin" && me) {
+      const st = String(me?.status || "").toLowerCase();
+      const acceptedAt = me?.acceptedAt || me?.updatedAt || null;
+      if (st === "active" || st === "member" || st === "accepted") {
+        if (acceptedAt && new Date(acceptedAt) > statusSeenAt) {
+          accepted = { at: new Date(acceptedAt) };
+        }
+      }
+    }
+
+    // Susun items untuk dropdown (max 10)
+    const items = [];
+
+    if (role === "admin") {
+      for (const r of joinRequests.slice(0, 10)) {
+        items.push({
+          type: "join_request",
+          id: String(r.user?._id || r.user),
+          title: (r.user?.username || r.user?.email || "Unknown") + " meminta bergabung",
+          createdAt: r.requestedAt || r.createdAt || org.updatedAt || new Date(),
+          link: `/${String(org._id)}/member`, // arahkan ke halaman manajemen member
+        });
+      }
+    } else if (accepted) {
+      items.push({
+        type: "membership_accepted",
+        id: "accepted",
+        title: "Permintaan bergabung telah diterima",
+        createdAt: accepted.at,
+        link: `/${String(org._id)}/dashboard`,
+      });
+    }
+
+    for (const d of newDocs) {
+      const when = d.uploadDate || d.createdAt || new Date();
+      items.push({
+        type: "doc_new",
+        id: String(d._id),
+        title: d.title || "Dokumen baru",
+        createdAt: when,
+        link: `/${String(org._id)}/manage-document/${String(d._id)}`, // sesuaikan route Anda
+      });
+    }
+
+    // Summary count
+    const counts = {
+      newDocs: newDocs.length,
+      joinRequests: role === "admin" ? joinRequests.length : 0,
+      accepted: role !== "admin" && accepted ? 1 : 0,
+    };
+
+    return res.json({
+      role,
+      counts,
+      total: counts.newDocs + counts.joinRequests + counts.accepted,
+      items: items
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10),
+      lastSeen: { docsSeenAt, statusSeenAt },
+    });
+  } catch (e) {
+    console.error(where, e);
+    return res.status(500).json({ error: e?.message || "Internal Server Error" });
+  }
+}
+
+// PUT /orgs/:id/header-notifications/read
+export async function markHeaderNotificationsRead(req, res) {
+  const where = "[markHeaderNotificationsRead]";
+  try {
+    const { id } = req.params;
+    if (!req.user || !(req.user.id || req.user._id)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const orgObjId = asObjId(id);
+    const userIdStr = String(req.user.id || req.user._id);
+    const userObjId = asObjId(userIdStr);
+
+    const now = new Date();
+
+    // Update seenAt pada entry member yang bersangkutan
+    const upd = await Organization.updateOne(
+      { _id: orgObjId, "members.user": userObjId },
+      {
+        $set: {
+          "members.$.docsSeenAt": now,
+          "members.$.statusSeenAt": now,
+        },
+      }
+    );
+
+    // Jika user bukan anggota (mis. owner tidak tersimpan di members),
+    // kita tidak gagal—frontend akan memakai fallback localStorage.
+    return res.json({ ok: true, docsSeenAt: now, statusSeenAt: now, matched: upd.matchedCount });
+  } catch (e) {
+    console.error(where, e);
+    return res.status(500).json({ error: e?.message || "Internal Server Error" });
+  }
+}

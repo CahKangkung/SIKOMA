@@ -5,6 +5,7 @@ import { upload, createDocument, summarizePreview, getOrgMembers } from "../../S
 import Sidebar from "../../components/Sidebar";
 import { ArrowLeft } from "lucide-react";
 import { useUser } from "../../context/UserContext";
+import Header from "../../components/Header";
 
 // const RECIPIENTS = [
 //   "UKM Seni Rupa",
@@ -66,6 +67,7 @@ export default function AddDoc() {
     }
 
     fetchMember();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user?.id, userLoading]);
 
   const onPickFile = (e) => {
@@ -169,11 +171,7 @@ export default function AddDoc() {
 
       <div className="ml-64 min-h-screen">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 border-b bg-white">
-          <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
-            <h1 className="text-2xl font-bold text-[#23358B]">Add Document</h1>
-          </div>
-        </header>
+        <Header title="Add Document"/>
 
         <main className="mx-auto max-w-7xl px-6 py-8">
           {/* Title row */}

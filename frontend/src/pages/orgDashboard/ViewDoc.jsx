@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getDoc, deleteDoc, upload, updateDocStatus } from "../../Services/api";
 import Sidebar from "../../components/Sidebar";
+import Header from "../../components/Header";
 import {
   ArrowLeft,
   Trash2,
@@ -68,7 +69,7 @@ function Meta({ label, value, alignRight = false }) {
 }
 
 export default function ViewDoc() {
-  const { orgId, docId } = useParams();
+  const { id: orgId, docId } = useParams();
   const navigate = useNavigate();
 
   const [doc, setDoc] = useState(null);
@@ -81,7 +82,8 @@ export default function ViewDoc() {
   // form state (tidak menulis ke DB sampai submit)
   const [actionStatus, setActionStatus] = useState(null);
   const [comment, setComment] = useState("");
-  const [approvalFile, setApprovalFile] = useState(null);
+  // const [approvalFile, setApprovalFile] = useState(null);
+  const [replyFile, setReplyFile] = useState(null); // post commit 3
 
   const apiBase = import.meta.env.VITE_API_BASE;
 
@@ -118,13 +120,25 @@ export default function ViewDoc() {
     }
   };
 
+  // ✅ Debug log (post commit 3)
+  console.log("🔧 API Base:", apiBase);
+  console.log("📄 Document:", doc);
+
+  console.log("🔍 Environment check:", {
+    VITE_API_BASE: import.meta.env.VITE_API_BASE,
+    MODE: import.meta.env.MODE,
+    DEV: import.meta.env.DEV,
+  });
+
   // const attach = doc?.attachments?.[0];
   // const isPdf = attach?.mime === "application/pdf";
   // const fileUrl = isPdf && attach ? `${apiBase}/files/${attach.fileId}` : null;
   const fileUrl = doc?.fileId 
   // ? `${apiBase}/files/${doc.fileId}` 
-    ? `${apiBase}/files/${doc.fileId}?organizationId=${doc.organizationId}` 
+    ? `${apiBase}/files/id/${doc.fileId}?organizationId=${doc.organizationId}` // post commit 3
     : null;
+
+  console.log("🔗 File URL:", fileUrl); // post commit 3
 
   // Submit: update ke DB, lalu refresh UI dari respons server
   const submitAction = async (e) => {
@@ -139,6 +153,15 @@ export default function ViewDoc() {
 
       if (status === "Reject") {
         payload.comment = (comment || "").trim();
+
+        // post commit 3
+        if (replyFile) {
+          const fd = new FormData();
+          fd.append("file", replyFile);
+          fd.append("organizationId", doc.organizationId); // new
+          const up = await upload(fd); // server mengembalikan fileId
+          payload.approvalFileId = up?.fileId || up?.id;
+        }
       }
 
       if (status === "Approved") {
@@ -148,13 +171,17 @@ export default function ViewDoc() {
         //   setSaving(false);
         //   return;
         // }
-        if (approvalFile) {
+
+        if (replyFile) {
           const fd = new FormData();
-          fd.append("file", approvalFile);
+          fd.append("file", replyFile);
           fd.append("organizationId", doc.organizationId); // new
           const up = await upload(fd); // server mengembalikan fileId
           payload.approvalFileId = up?.fileId || up?.id;
         }
+
+        // post commit 3
+        payload.comment = (comment || "").trim();
       }
 
       const updated = await updateDocStatus(doc._id || doc.id, payload);
@@ -163,7 +190,7 @@ export default function ViewDoc() {
       setDoc(updated);
       setActionStatus(nextActionFromStatus(canon(updated?.status)));
       setComment("");
-      setApprovalFile(null);
+      setReplyFile(null);
 
       // refresh penuh agar pasti sinkron dengan DB (stepper, preview)
       await load();
@@ -183,16 +210,19 @@ export default function ViewDoc() {
   const canDelete = doc?.isAdmin || doc?.isAuthor;
   const canSetStatus = doc?.canSetStatus;
 
+  const displayUsername = (user) => {
+    if (!user) return "(Deleted User)";
+    if (user.isDeleted) return "(Deleted User)";
+    if (user.username && user.username.startsWith("[deleted_")) return "-";
+    return user.username || "Unknown";
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar activePage="Manage Document" />
+      <Sidebar activePage="Manage Document" orgId={orgId} />
       <div className="ml-64 min-h-screen">
         {/* TOP BAR */}
-        <header className="sticky top-0 z-30 border-b bg-white">
-          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-            <h1 className="text-2xl font-bold text-[#23358B]">View Document</h1>
-          </div>
-        </header>
+        <Header title="View Document" />
 
         <main className="mx-auto max-w-7xl px-6 py-6">
           {loading && <div className="text-gray-500">Loading…</div>}
@@ -287,12 +317,23 @@ export default function ViewDoc() {
                   {(() => {
                     const r = doc.reviews[doc.reviews.length - 1];
                     const at = r.at ? new Date(r.at).toLocaleString("id-ID") : "-";
-                    const attachUrl = r.fileId
+                    // const attachUrl = r.fileId
+                    //   ? `${apiBase}/files/id/${r.fileId}?organizationId=${doc.organizationId}`
+                    //   : null;
+
+                    // post commit 3
+                    const attachUrl = r.fileId && doc.organizationId
                       ? `${apiBase}/files/id/${r.fileId}?organizationId=${doc.organizationId}`
-                      : null;
+                      : null;                                      
+
+                    console.log("📎 Review attachment:", {
+                      fileId: r.fileId,
+                      organizationId: doc.organizationId,
+                      attachUrl
+                    });
                     return (
                       <div className="text-sm text-gray-700" style={{ color: "white" }}>
-                        <div><span className="font-medium">By:</span> {r.byUser?.username || "(unknown)"} <span className="text-gray-400">•</span> {at}</div>
+                        <div><span className="font-medium">By:</span> {displayUsername(r.byUser)} <span className="text-gray-400">•</span> {at}</div>
                         <div className="mt-1">
                           <span className="font-medium">Status:</span> {r.status}
                         </div>
@@ -307,11 +348,15 @@ export default function ViewDoc() {
                               href={attachUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-2 rounded-md bg-[#23358B] px-3 py-1.5 text-white hover:opacity-90"
+                              className="inline-flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-[#23358B] hover:opacity-90"
                             >
                               <Download className="h-4 w-4" />
                               Download Attachment
                             </a>
+                            {/* post commit 3 */}
+                            {r.file?.filename && (
+                              <span className="text-sm italic text-white" style={{ paddingLeft: "10px", fontSize: "12px" }}>{r.file.filename}</span>
+                            )} {/* batas post commit 3 */}                         
                           </div>
                         )}
                       </div>
@@ -326,7 +371,7 @@ export default function ViewDoc() {
                   <Meta 
                     label="Author" 
                     // value={doc.author}
-                    value={doc.createdByUser?.username || "Unknown"}
+                    value={displayUsername(doc.createdByUser)}
                   />
                   <Meta 
                     label="Recipient" 
@@ -381,24 +426,56 @@ export default function ViewDoc() {
                 <div className="rounded-2xl border border-gray-200 bg-white p-4">
                   {/* {isPdf && fileUrl ? ( */}
                   {fileUrl ? (
-                    <div className="relative">
-                      <a
-                        href={fileUrl}
-                        download
-                        target="_blank"
-                        rel="noreferrer"
-                        className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-md bg-[#23358B] px-3 py-1.5 text-sm text-white hover:opacity-90"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                      </a>
-                      <iframe title="PDF Preview" src={fileUrl} className="h-[540px] w-full rounded-md" />
-                    </div>
+                    // post commit 3
+                    (() => {
+                      // const lower = fileUrl.toLowerCase();
+                      //const isPDF = lower.endsWith(".pdf") | doc?.originalName?.toLowerCase()?.endsWith(".pdf");
+                      //const isPDF = fileUrl.toLowerCase().endsWith(".pdf") || doc?.originalName?.toLowerCase()?.endsWith(".pdf");
+                      const isPDF =
+                        (doc?.mimeType && doc.mimeType.includes("pdf")) ||
+                        fileUrl.toLowerCase().endsWith(".pdf");
+                      return isPDF ? (
+                        <div className="relative">
+                          <a
+                            href={fileUrl}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-md bg-[#23358B] px-3 py-1.5 text-sm text-white hover:opacity-90"
+                          >
+                            <Download className="h-4 w-4" />
+                            Download
+                          </a>
+                          <iframe title="PDF Preview" src={fileUrl} className="h-[540px] w-full rounded-md" />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-center">
+                          
+                          <div className="text-5xl" style={{ margin: "5px" }}>📄</div>
+                          <div className="mt-3 text-gray-600" style={{ margin: "15px" }}>
+                            {doc?.originalName || "Document"}
+                          </div>
+                          {/* <p className="font-medium text-gray-700 mb-2">
+                            {doc?.originalName || "Document"}
+                          </p> */}
+                          <a
+                            href={fileUrl}
+                            download
+                            target="_blank"
+                            rel="noreferrer"
+                            className="bg-[#23358B] text-white px-4 py-2 rounded-md hover:opacity-90"
+                          >
+                            <Download className="inline-block mr-2 h-4 w-4" />
+                            Download
+                          </a>
+                        </div>
+                      );
+                    })()                    
                   ) : (
                     <div className="text-gray-500">
                        Preview is not available. {/* {attach ? `(${attach.mime})` : "Tidak ada lampiran."} */}
                     </div>
-                  )}
+                  )} {/* post commit 3 sampai sini */}
                 </div>
               </div>
 
@@ -418,7 +495,7 @@ export default function ViewDoc() {
                       onChange={(e) => {
                         setActionStatus(e.target.value);
                         setComment("");
-                        setApprovalFile(null);
+                        setReplyFile(null);
                       }}
                       disabled={saving}
                       className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
@@ -430,45 +507,87 @@ export default function ViewDoc() {
                   </div>
 
                   {actionStatus === "Approved" && (
-                    <div>
-                      <div className="font-semibold text-[#23358B]">Upload Document</div>
-                      <label
-                        className={`mt-2 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/30 p-8 text-center hover:bg-indigo-50 ${
-                          saving ? "pointer-events-none opacity-60" : ""
-                        }`}
-                      >
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={(e) => setApprovalFile(e.target.files?.[0] || null)}
+                    // post commit 3 (menambah komentar dibawah upload )
+                    <>
+                      <div>
+                        <div className="font-semibold text-[#23358B]">Upload Document</div>
+                        <label
+                          className={`mt-2 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/30 p-8 text-center hover:bg-indigo-50 ${
+                            saving ? "pointer-events-none opacity-60" : ""
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => setReplyFile(e.target.files?.[0] || null)}
+                            disabled={saving}
+                          />
+                          <div className="text-5xl">📥</div>
+                          <div className="mt-1 text-sm text-gray-600">
+                            Drag & drop or click to browse file
+                          </div>
+                        </label>
+                        {replyFile && (
+                          <div className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                            <span className="text-lg">📄</span>
+                            <span className="truncate">{replyFile.name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="font-semibold text-[#23358B]">Add Comment</div>
+                        <textarea
+                          rows={4}
+                          placeholder="Alasan penolakan"
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
                           disabled={saving}
+                          className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
                         />
-                        <div className="text-5xl">📥</div>
-                        <div className="mt-1 text-sm text-gray-600">
-                          Drag & drop or click to browse file
-                        </div>
-                      </label>
-                      {approvalFile && (
-                        <div className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
-                          <span className="text-lg">📄</span>
-                          <span className="truncate">{approvalFile.name}</span>
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    </>
                   )}
 
                   {actionStatus === "Reject" && (
-                    <div className="md:col-span-2">
-                      <div className="font-semibold text-[#23358B]">Add Comment</div>
-                      <textarea
-                        rows={4}
-                        placeholder="Alasan penolakan"
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        disabled={saving}
-                        className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
-                      />
-                    </div>
+                    // post commit 3 (menambah upload diatas upload )
+                    <>
+                      <div>
+                        <div className="font-semibold text-[#23358B]">Upload Document</div>
+                        <label
+                          className={`mt-2 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/30 p-8 text-center hover:bg-indigo-50 ${
+                            saving ? "pointer-events-none opacity-60" : ""
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => setReplyFile(e.target.files?.[0] || null)}
+                            disabled={saving}
+                          />
+                          <div className="text-5xl">📥</div>
+                          <div className="mt-1 text-sm text-gray-600">
+                            Drag & drop or click to browse file
+                          </div>
+                        </label>
+                        {replyFile && (
+                          <div className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
+                            <span className="text-lg">📄</span>
+                            <span className="truncate">{replyFile.name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <div className="font-semibold text-[#23358B]">Add Comment</div>
+                        <textarea
+                          rows={4}
+                          placeholder="Alasan penolakan"
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          disabled={saving}
+                          className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-300 disabled:opacity-50"
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
 

@@ -69,10 +69,21 @@ export const upload = async (formData) => {
 // 🧠 AI / Search endpoints
 // ----------------------
 
-export const search = async (payload) => {
-  const res = await api.post("/search", payload);
-  return res.data;
-};
+// export const search = async (payload) => {
+//   const res = await api.post("/search", payload);
+//   return res.data;
+// };
+
+export async function search({ orgId, query, topK = 8, threshold = 0.75, withAnswer = false }) {
+  const res = await fetch("http://localhost:8080/api/search", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ orgId, query, topK, threshold, withAnswer }),
+  });
+  if (!res.ok) throw new Error(`search failed: ${res.status}`);
+  return await res.json();
+}
 
 export const summarizePreview = async (formData) => {
   const res = await api.post("/summarize-preview", formData);
@@ -96,6 +107,105 @@ export const updateDocStatus = async (id, payload) => {
 };
 
 export const getOrgMembers = async (orgId) => {
-  const res = await api.get(`/organization/${orgId}/members`);
+  const res = await api.get(`/organization/${orgId}/member`);
   return res.data;
+};
+
+export const getOrgStats = async (orgId) => {
+  const response = await api.get(`/organization/${orgId}/stats`);
+  return response.data;
+};
+
+// export const getOrgStats = (orgId) => {
+//   api.get(`/organization/${orgId}/stats`).then((r) => r.data);
+// };
+
+// post commit 4
+/* ======================================================
+   👤 USER AUTH API (tersambung ke MongoDB)
+   ====================================================== */
+
+// Ambil data user yang sedang login
+export const getCurrentUser = async () => {
+  const res = await api.get("/auth/me");
+  return res.data;
+};
+
+// Update profile user (username, email, password)
+export const updateUser = async (data) => {
+  const res = await api.put("/auth/update", data);
+  return res.data;
+};
+
+// Hapus akun user
+export const deleteUser = async () => {
+  const res = await api.delete("/auth/delete");
+  return res.data;
+};
+
+// Login user
+export const loginUser = async (data) => {
+  const res = await api.post("/auth/login", data);
+  console.log(res)
+  return res.data;
+};
+
+// Register user baru
+export const registerUser = async (data) => {
+  const res = await api.post("/auth/register", data);
+  return res.data;
+};
+
+// Logout user
+export const logoutUser = async () => {
+  const res = await api.post("/auth/logout");
+  return res.data;
+};
+
+// Login pakai Google
+export const googleLogin = async () => {
+  window.location.href = `${import.meta.env.VITE_API_BASE}/auth/google`;
+};
+
+/* ======================================================
+   ⚙️ Error Handling (optional)
+   ====================================================== */
+
+api.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.warn("⛔ Unauthorized, please login again.");
+    }
+    return Promise.reject(error);
+  }
+);
+
+function authHeaders() {
+  const t = localStorage.getItem("token");
+  return t ? { Authorization: `Bearer ${t}` } : {};
 }
+
+export async function getHeaderNotifications(orgId, since = null) {
+  const params = new URLSearchParams();
+  if (since?.sinceDocsAt) params.set("sinceDocsAt", since.sinceDocsAt);
+  if (since?.sinceStatusAt) params.set("sinceStatusAt", since.sinceStatusAt);
+
+  const r = await fetch(`${api}/organization/${orgId}/header-notifications?${params.toString()}`, {
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function markHeaderNotificationsRead(orgId) {
+  const r = await fetch(`${api}/organization/${orgId}/header-notifications/read`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({}), // tidak perlu payload
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export default api;

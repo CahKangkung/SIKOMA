@@ -42,6 +42,7 @@ app.use("/api", ingestRoutes);
 app.use("/api", searchRoutes);
 app.use("/api/docs", docsRoutes);
 app.use("/api/files", filesRoutes);
+app.use("/api/search", authMiddleware, searchRoutes);
 
 // error handler 
 app.use((err, _req, res, _next) => {
