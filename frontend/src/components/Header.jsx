@@ -116,7 +116,7 @@ export default function Header({ title }) {
                 return {
                   type: "join_request",
                   id: String(u?._id || u || Math.random()),
-                  title: `${who} meminta bergabung`,
+                  title: `${who} request to join`,
                   createdAt: when,
                   link: `/${paramId}/member`,
                 };
